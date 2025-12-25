@@ -517,6 +517,7 @@
         if(sceneId === "to_climax") {
             // 愛執ルートは「美咲への愛」が強い。
             savedData.route = "emotion";
+            savedData.cleared_emotion = true; // ★クリアフラグを追加★
             savedData.items = ["美咲のスマホ(遺品)", "ハンドクリーム"];
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
             

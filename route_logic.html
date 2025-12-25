@@ -532,6 +532,9 @@
         // --- 特殊処理：クライマックスへ遷移 ---
         if(sceneId === "to_climax") {
             savedData.route = "logic";
+            // ★クリアフラグを追加★
+            savedData.cleared_logic = true;
+            
             savedData.items = ["不正ログデータ", "美咲のスマホ(証拠品)"];
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
             

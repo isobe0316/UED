@@ -452,6 +452,7 @@
         // --- 特殊処理：クライマックスへ遷移 ---
         if(sceneId === "to_climax") {
             // データを更新して遷移
+            savedData.cleared_revenge = true; // ★クリアフラグを追加★
             savedData.karma += 50; // 業を最大化
             savedData.items = ["裏帳簿", "美咲のスマホ"];
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>埋まらない予実差の闇 - Chapter 0: Variance</title>
+<title>埋まらない予実差の闇 - Chapter 0</title>
 <style>
     :root {
         --bg-color: #050505;
@@ -32,6 +32,7 @@
         flex-direction: column;
         border-left: 1px solid #1a1a1a;
         border-right: 1px solid #1a1a1a;
+        position: relative;
     }
     #scene-header {
         height: 260px;
@@ -39,6 +40,7 @@
         display: flex; align-items: center; justify-content: center;
         font-size: 5rem; position: relative; overflow: hidden;
         border-bottom: 1px solid #222;
+        transition: all 1s;
     }
     #teams-notification {
         position: absolute; bottom: 20px; right: 20px; width: 340px;
@@ -89,11 +91,25 @@
     .route-emotion { border-color: #f5a623; }
     .route-fear { border-color: #9013fe; }
     .route-revenge { border-color: #d0021b; }
+
+    /* 隠しルート用スタイル */
+    #secret-link {
+        position: absolute; top: 10px; right: 10px;
+        color: #111; font-size: 0.8rem; cursor: pointer;
+        z-index: 100;
+    }
+    #secret-link:hover { color: #300; }
+    
+    .corrupted-body { background-color: #100; }
+    .corrupted-btn { border-color: #f00 !important; color: #f00 !important; animation: glitch 0.5s infinite; }
+
 </style>
 </head>
 <body>
 
 <div id="game-wrapper">
+    <div id="secret-link" onclick="checkSecret()">π</div>
+
     <div id="scene-header">
         <span id="scene-icon">🌙</span>
         <div id="teams-notification">
@@ -109,7 +125,37 @@
 </div>
 
 <script>
-    // ▼▼▼ シナリオデータ（最終完全版・分岐追加） ▼▼▼
+    // セーブデータ確認
+    const save = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
+    
+    // 全ルートクリア判定
+    const allCleared = save.cleared_revenge && save.cleared_logic && save.cleared_emotion && save.cleared_fear;
+    // 美咲ログ既読判定
+    const misakiRead = save.read_misaki;
+
+    // 美咲ログ既読なら、最初から世界を侵食させる（真・完結編への誘導）
+    if(misakiRead) {
+        document.body.classList.add("corrupted-body");
+        document.getElementById("scene-header").style.filter = "hue-rotate(90deg) invert(1)";
+    }
+
+    // 隠しリンクの挙動
+    function checkSecret() {
+        if(misakiRead) {
+            // 真・完結編へ
+            window.location.href = "secret_loop.html";
+        } else if(allCleared) {
+            // 美咲ログへ
+            if(confirm("全ての可能性を観測しましたね？\n裏側の記録へアクセスしますか？")) {
+                window.location.href = "secret_misaki.html";
+            }
+        } else {
+            // まだ条件を満たしていない
+            alert("まだ観測されていない運命があります。\n全ての結末（4ルート）を見届けてください。");
+        }
+    }
+
+    // ▼▼▼ シナリオデータ（最終完全版） ▼▼▼
     const scenes = {
         // --- 導入 ---
         start: {
@@ -203,7 +249,6 @@
                 『予実差異』……それは、FP&A担当だった美咲の口癖だ。<br>
                 削除されたはずの彼女のアカウントが、亡霊のようにネットワークを彷徨っているのか？</p>
             `,
-            // ★追加分岐★
             choices: [
                 { text: "通知をクリックして開く", next: "message_reveal" },
                 { text: "「スパムだ」と判断し、削除を試みる", next: "attempt_ignore" }
@@ -284,50 +329,53 @@
         choices: document.getElementById("choices-container"),
         icon: document.getElementById("scene-icon"),
         notif: document.getElementById("teams-notification"),
-        notifContent: document.getElementById("notif-content")
+        notifContent: document.getElementById("notif-content"),
+        header: document.getElementById("scene-header")
     };
 
     function render(sceneId) {
-        // ★修正点：必ず一番上へスクロール★
         window.scrollTo(0,0);
 
-        // --- ファイル遷移ロジック（全ルート解放済み） ---
         if(sceneId.startsWith("route_")) {
             const routeName = sceneId.split("_")[1];
-            
-            // ルートごとの初期パラメータ設定
             let karma = 0;
             if(routeName === "revenge") karma = 50;
-            if(routeName === "fear") karma = 0; // Fearは後で上がる
+            if(routeName === "fear") karma = 0;
             
-            localStorage.setItem("yojitsu_save", JSON.stringify({
-                route: routeName,
-                sanity: 100,
-                karma: karma
-            }));
+            // 既存セーブデータを維持しつつ更新（重要）
+            const oldSave = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
+            oldSave.route = routeName;
+            oldSave.sanity = 100;
+            oldSave.karma = karma;
+            localStorage.setItem("yojitsu_save", JSON.stringify(oldSave));
 
-            // 遷移実行
             window.location.href = `route_${routeName}.html`;
             return;
         }
 
         const scene = scenes[sceneId];
         
-        // 演出：通知
         if(scene.action && scene.action.popup) {
             dom.notifContent.innerHTML = scene.action.popup;
             dom.notif.classList.add("active");
         }
 
-        // 画面描画
         dom.icon.innerText = scene.icon || "▪";
         dom.text.innerHTML = scene.text;
-        
-        // テキスト表示アニメーション
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
 
-        // 選択肢生成
         dom.choices.innerHTML = "";
+        
+        // 美咲ログ既読なら、選択肢もバグらせる
+        if(misakiRead && sceneId === "final_choice") {
+             const btn = document.createElement("button");
+             btn.innerText = "逃ゲラレナイ";
+             btn.className = "corrupted-btn";
+             btn.onclick = () => alert("無駄ダヨ");
+             dom.choices.appendChild(btn);
+             return;
+        }
+
         scene.choices.forEach(c => {
             const btn = document.createElement("button");
             btn.innerHTML = c.text;
@@ -335,6 +383,13 @@
             btn.onclick = () => render(c.next);
             dom.choices.appendChild(btn);
         });
+    }
+
+    // 隠しリンクの可視化（右上）
+    if(allCleared) {
+        const link = document.getElementById("secret-link");
+        link.style.color = "#333"; // 少し見えるようにする
+        if(misakiRead) link.innerText = "☠";
     }
 
     render("start");

@@ -492,6 +492,11 @@
         window.scrollTo(0, 0);
 
         if(sceneId === "back_to_title") {
+            // ★クリアフラグを追加★
+            const currentSave = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
+            currentSave.cleared_fear = true;
+            localStorage.setItem("yojitsu_save", JSON.stringify(currentSave));
+            
             window.location.href = "index.html";
             return;
         }
@@ -500,6 +505,9 @@
         if(sceneId === "to_climax") {
             // Fearルートは「殺人」を犯しているため KarmaMAX。
             savedData.route = "fear";
+            // ★クリアフラグを追加★
+            savedData.cleared_fear = true;
+            
             savedData.items = ["美咲のスマホ(凶器)"];
             savedData.karma = 100;
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
