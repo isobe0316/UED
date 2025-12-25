@@ -24,23 +24,48 @@
         display: flex;
         justify-content: center;
         min-height: 100vh;
+        overflow: hidden; /* 背景画像用 */
+    }
+
+    /* === レイヤー構造 === */
+    #layer-group {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: -1; pointer-events: none;
+    }
+    #bg-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-size: cover; background-position: center;
+        transition: opacity 1s ease; 
+        opacity: 0.5;
+        filter: contrast(1.3) brightness(0.7); /* 暗くコントラスト強く */
+    }
+    #cg-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; justify-content: center; align-items: center;
+    }
+    #cg-image {
+        max-height: 90%; max-width: 90%;
+        opacity: 0; transition: opacity 1s ease;
+        filter: drop-shadow(0 0 20px #800); /* 赤い影 */
     }
 
     #game-wrapper {
         width: 100%;
         max-width: 840px;
-        background-color: #0f0202;
+        height: 95vh;
+        background-color: rgba(15, 2, 2, 0.9);
         box-shadow: 0 0 100px rgba(138, 0, 0, 0.2);
         display: flex;
         flex-direction: column;
-        border-left: 2px solid #300;
-        border-right: 2px solid #300;
+        border: 2px solid #300;
+        position: relative;
+        overflow-y: auto;
     }
 
     /* ビジュアルヘッダー */
     #scene-header {
-        height: 260px;
-        background: radial-gradient(circle at center, #300000 0%, #000 100%);
+        height: 200px;
+        background: radial-gradient(circle at center, rgba(51,0,0,0.8) 0%, rgba(0,0,0,0.9) 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -48,19 +73,20 @@
         position: relative;
         overflow: hidden;
         border-bottom: 1px solid #500;
-        transition: filter 0.5s;
+        flex-shrink: 0;
     }
     
     .blood-overlay {
         position: absolute; top:0; left:0; width:100%; height:100%;
         background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><circle cx="50%" cy="50%" r="40%" fill="rgba(255,0,0,0.1)" filter="url(%23blur)"/></svg>');
         opacity: 0; transition: opacity 2s; pointer-events: none;
+        mix-blend-mode: multiply;
     }
-    .blood-overlay.active { opacity: 1; }
+    .blood-overlay.active { opacity: 1; background-color: rgba(50,0,0,0.3); }
 
     /* 本文エリア */
     #narrative-area {
-        padding: 60px 50px;
+        padding: 40px 50px;
         flex-grow: 1;
         font-size: 1.1rem;
         text-align: justify;
@@ -86,6 +112,7 @@
     .ending-card {
         margin-top: 50px; padding: 40px; border: 1px solid #666; text-align: center;
         color: #888; opacity: 0; animation: fadeIn 3s forwards; animation-delay: 1s;
+        background: rgba(0,0,0,0.8);
     }
     .end-title { font-size: 2rem; margin-bottom: 20px; letter-spacing: 0.2em; font-weight: bold; color: #666; }
 
@@ -95,11 +122,11 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
-        background: linear-gradient(to top, #000 0%, #0f0202 100%);
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(15,2,2,0.9) 100%);
         border-top: 1px solid #300;
     }
     button {
-        background: #1a0505; color: #a88; border: 1px solid #522;
+        background: rgba(26,5,5,0.9); color: #a88; border: 1px solid #522;
         padding: 25px 30px; text-align: left; 
         font-family: "Yu Mincho", serif; font-size: 1.05rem;
         cursor: pointer; transition: all 0.3s; position: relative;
@@ -117,6 +144,11 @@
 </head>
 <body>
 
+<div id="layer-group">
+    <div id="bg-layer"></div>
+    <div id="cg-layer"><img id="cg-image" src="" alt=""></div>
+</div>
+
 <div id="game-wrapper">
     <div id="scene-header">
         <span id="scene-icon">💢</span>
@@ -127,16 +159,69 @@
     <div id="choices-container"></div>
 </div>
 
-<script src="audio.js"></script>
+<audio id="bgm-player" loop></audio>
+<audio id="se-player"></audio>
 
 <script>
-    // ▼▼▼ シナリオデータ（復讐編：音響演出追加） ▼▼▼
+    /* =========================================
+       システム制御 (Audio & Image)
+       ========================================= */
+    const audio = {
+        bgm: document.getElementById("bgm-player"),
+        se: document.getElementById("se-player"),
+        currentBgm: "",
+        
+        playBgm: function(filename) {
+            if(this.currentBgm === filename) return;
+            this.bgm.src = `audio/${filename}.mp3`;
+            this.bgm.volume = 0.5;
+            this.bgm.play().catch(e => console.log("Audio Error"));
+            this.currentBgm = filename;
+        },
+        stopBgm: function() {
+            this.bgm.pause();
+            this.currentBgm = "";
+        },
+        playSe: function(filename) {
+            this.se.src = `audio/${filename}.mp3`;
+            this.se.volume = 0.7;
+            this.se.play().catch(e => console.log("SE Error"));
+        }
+    };
+
+    const visuals = {
+        bg: document.getElementById("bg-layer"),
+        cg: document.getElementById("cg-image"),
+        
+        setBg: function(filename) {
+            if(!filename) return;
+            this.bg.style.backgroundImage = `url('images/${filename}.jpg')`;
+        },
+        setCg: function(filename) {
+            if(!filename) {
+                this.cg.style.opacity = 0;
+            } else {
+                this.cg.src = `images/${filename}.png`;
+                this.cg.style.opacity = 1;
+            }
+        },
+        setFilter: function(type) {
+            if(type === "blood") {
+                this.bg.style.filter = "sepia(0.5) hue-rotate(-50deg) saturate(3) contrast(1.5)"; // 真っ赤
+            } else {
+                this.bg.style.filter = "contrast(1.3) brightness(0.7)"; // 通常（暗い）
+            }
+        }
+    };
+
+    // ▼▼▼ シナリオデータ（復讐編：画像・音声統合版） ▼▼▼
     const scenes = {
         // --- 導入：共犯契約 ---
         start: {
             icon: "💢",
-            sound: "slam", // ★SE：怒りの打撃
-            music: "mystery", // ★BGM：不穏な同盟
+            bg: "bg_office_night",    // ★背景：オフィス
+            sound: "se_slam",         // ★SE：打撃
+            music: "bgm_mystery",     // ★BGM：不穏
             text: `
                 <span class="name">深夜2:20 財務経理部フロア</span>
                 <p>「ふざけるな！！」</p>
@@ -166,6 +251,8 @@
         // --- データ入手 ---
         download_data: {
             icon: "💾",
+            bg: "bg_office_night",
+            cg: "cg_misaki_ghost_hollow", // ★CG：邪悪に微笑む美咲
             effect: { flag: "got_data" },
             text: `
                 <p>画面に、Excelファイルが添付される。<br>
@@ -198,7 +285,9 @@
         // --- 実家訪問 ---
         visit_home: {
             icon: "🏠",
-            music: "rain", // ★Ambience：共感の雨
+            bg: "bg_home_altar", // ★背景：実家
+            cg: "",
+            music: "bgm_rain",   // ★Ambience：雨
             text: `
                 <span class="name">翌日 日曜日 美咲の実家</span>
                 <p>私は導かれるように美咲の実家を訪れていた。<br>
@@ -224,7 +313,8 @@
         // -----------------------------------------------------------
         evade_1: {
             icon: "😶",
-            music: "horror", // ★BGM：不穏
+            bg: "bg_home_altar",
+            music: "bgm_horror", // ★BGM：不穏
             text: `
                 <p>「……ちょっと待ってください。僕には関係ありません」</p>
                 <p>私は母親の手を振り払うようにして後ずさった。<br>
@@ -242,6 +332,7 @@
 
         evade_2: {
             icon: "👹",
+            bg: "bg_home_altar",
             text: `
                 <p>「……関係ない？」</p>
                 <p>母親が、低くしゃがれた声で呟く。<br>
@@ -264,7 +355,8 @@
 
         evade_3: {
             icon: "🏃",
-            sound: "impact", // ★SE：殴打
+            bg: "bg_home_altar",
+            sound: "se_impact", // ★SE：殴打
             text: `
                 <p>「離せ！ この狂人め！！」</p>
                 <p>私は無我夢中で母親を殴りつけた。<br>
@@ -287,8 +379,9 @@
         // --- BAD END: 契約不履行 ---
         bad_end_payment: {
             icon: "💀",
-            sound: "impact", // ★SE：交通事故の衝撃
-            music: "ending",
+            bg: "bg_office_night", // （※路上だが暗い背景で代用）
+            sound: "se_impact", // ★SE：衝突
+            music: "bgm_ending",
             effect: { blood: false },
             text: `
                 <p>スマホの画面を見る。<br>
@@ -321,6 +414,8 @@
         // --- 母親との契約（ルート復帰） ---
         pact_mom: {
             icon: "🤝",
+            bg: "bg_home_altar",
+            cg: "cg_misaki_ghost_hollow", // ★CG：共犯の笑顔
             text: `
                 <p>「やりましょう。お母さん」<br>
                 私は母親の手を取り、静かに告げた。<br>
@@ -343,7 +438,8 @@
         // --- 復讐：犬飼 ---
         revenge_inukai_intro: {
             icon: "🏢",
-            music: "office", // ★Ambience：日常
+            bg: "bg_office_night",
+            music: "bgm_office", // ★Ambience：日常
             text: `
                 <span class="name">月曜日 経理部フロア</span>
                 <p>私は何食わぬ顔で出社した。<br>
@@ -366,8 +462,9 @@
 
         revenge_inukai_exec: {
             icon: "🩸",
-            sound: "execution", // ★SE：処刑音（電気ショック）
-            effect: { blood: true, karma: +30 },
+            bg: "bg_shredder_room", // ★背景：シュレッダー室
+            sound: "se_execution", // ★SE：処刑音
+            effect: { blood: true, karma: +30 }, // ★血のエフェクト
             text: `
                 <p>「やっちまえ、美咲」</p>
                 <p>巨大なシュレッダーが、飢えた獣のように唸りを上げる。<br>
@@ -391,8 +488,10 @@
         // --- 復讐：権田 ---
         revenge_gonda_intro: {
             icon: "📉",
-            music: "chase", // ★BGM：緊張
-            sound: "shredder", // ★SE：さっきの惨劇の余韻
+            bg: "cg_shredder_blood", // ★背景：血まみれ
+            music: "bgm_chase",    // ★BGM：緊張
+            sound: "se_shredder",  // ★SE：残響
+            effect: { blood: true },
             text: `
                 <p>犬飼の死は「不慮の事故」として処理された。<br>
                 社内はパニックだが、権田部長は保身に走っている。</p>
@@ -416,9 +515,10 @@
 
         revenge_gonda_exec: {
             icon: "💀",
-            sound: "stamp", // ★SE：承認の判決音（ドォォォン！）
-            music: "ending", // ★BGM：終焉
-            effect: { karma: +50 },
+            bg: "bg_meeting_room",
+            sound: "se_stamp", // ★SE：承認音
+            music: "bgm_ending", // ★BGM：終焉
+            effect: { karma: +50, blood: false },
             text: `
                 <p>私がEnterキーを叩いた瞬間。</p>
                 <p>会議室のスピーカーから、あの日美咲が録音した罵声が大音量で流れた。<br>
@@ -455,69 +555,55 @@
     const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "revenge", sanity: 100, karma: 0 };
 
     function render(sceneId) {
-        // ★スクロール修正：一番上へ★
         window.scrollTo(0, 0);
 
-        // --- 特殊処理：タイトル戻り ---
         if(sceneId === "back_to_title") {
             window.location.href = "index.html";
             return;
         }
 
-        // --- 特殊処理：クライマックスへ遷移 ---
         if(sceneId === "to_climax") {
-            // データを更新して遷移
-            savedData.cleared_revenge = true; // ★クリアフラグを追加★
-            savedData.karma += 50; // 業を最大化
+            savedData.cleared_revenge = true;
+            savedData.karma += 50; 
             savedData.items = ["裏帳簿", "美咲のスマホ"];
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
             window.location.href = "climax.html";
             return;
         }
 
-        // ★★★ 音響システム連携 (Ver.9対応) ★★★
-        if(typeof AudioEngine !== 'undefined') {
-            const scene = scenes[sceneId];
-            
-            // 効果音
-            if (scene && scene.sound) {
-                if (scene.sound === "slam") AudioEngine.playSlam();
-                else if (scene.sound === "impact") AudioEngine.playImpact();
-                else if (scene.sound === "execution") AudioEngine.playExecution();
-                else if (scene.sound === "shredder") AudioEngine.playShredder();
-                else if (scene.sound === "stamp") AudioEngine.playStamp();
-            }
-
-            // 音楽・環境音
-            if (scene && scene.music) {
-                if (scene.music === "mystery") AudioEngine.playMysteryTheme();
-                else if (scene.music === "horror") AudioEngine.playHorrorTheme();
-                else if (scene.music === "rain") AudioEngine.playAmbience("rain");
-                else if (scene.music === "office") AudioEngine.playAmbience("office");
-                else if (scene.music === "chase") AudioEngine.playChaseTheme();
-                else if (scene.music === "ending") AudioEngine.playEndingTheme();
-            }
-        }
-        // ★★★ 音響システム連携 ここまで ★★★
-
         const scene = scenes[sceneId];
         
-        // 演出更新
-        if(scene.effect) {
-            if(scene.effect.blood) dom.blood.classList.add("active");
-            if(scene.effect.karma) savedData.karma += scene.effect.karma;
-        } else {
-            dom.blood.classList.remove("active");
+        // --- 1. 画像・音声制御 ---
+        if(scene) {
+            visuals.setBg(scene.bg);
+            visuals.setCg(scene.cg);
+            
+            if(scene.effect) {
+                if(scene.effect.blood) {
+                     visuals.setFilter("blood");
+                     dom.blood.classList.add("active");
+                } else {
+                     visuals.setFilter("normal");
+                     dom.blood.classList.remove("active");
+                }
+                if(scene.effect.karma) savedData.karma += scene.effect.karma;
+            } else {
+                visuals.setFilter("normal");
+                dom.blood.classList.remove("active");
+            }
+
+            if(scene.music === "stop") audio.stopBgm();
+            else if(scene.music) audio.playBgm(scene.music);
+
+            if(scene.sound) audio.playSe(scene.sound);
         }
 
-        // 画面描画
+        // --- 2. 画面描画 ---
         dom.icon.innerText = scene.icon || "💢";
         dom.text.innerHTML = scene.text;
         
-        // テキストフェードイン
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
 
-        // 選択肢生成
         dom.choices.innerHTML = "";
         scene.choices.forEach(c => {
             const btn = document.createElement("button");
@@ -528,7 +614,6 @@
         });
     }
 
-    // 開始
     render("start");
 
 </script>

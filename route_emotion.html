@@ -24,28 +24,52 @@
         display: flex;
         justify-content: center;
         min-height: 100vh;
+        overflow: hidden; /* 背景画像用 */
+    }
+
+    /* === レイヤー構造 === */
+    #layer-group {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: -1; pointer-events: none;
+    }
+    #bg-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-size: cover; background-position: center;
+        transition: opacity 1.5s ease, filter 1.5s ease; 
+        opacity: 0.6;
+        filter: sepia(0.3); /* 全体的に少しセピア */
+    }
+    #cg-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; justify-content: center; align-items: center;
+    }
+    #cg-image {
+        max-height: 90%; max-width: 90%;
+        opacity: 0; transition: opacity 1s ease;
+        filter: drop-shadow(0 0 15px rgba(255, 221, 170, 0.3)); /* 優しい光 */
     }
 
     #game-wrapper {
         width: 100%;
         max-width: 840px;
-        background-color: #221505;
+        height: 95vh;
+        background-color: rgba(34, 21, 5, 0.85); /* 半透明 */
         box-shadow: 0 0 80px rgba(212, 136, 6, 0.1);
         display: flex;
         flex-direction: column;
-        border-left: 1px solid #443311;
-        border-right: 1px solid #443311;
+        border: 1px solid #443311;
+        position: relative;
+        overflow-y: auto;
     }
 
     /* ビジュアルヘッダー */
     #scene-header {
-        height: 260px;
-        background: radial-gradient(circle at center, #332211 0%, #000 100%);
+        height: 200px;
+        background: radial-gradient(circle at center, rgba(51,34,17,0.8) 0%, rgba(0,0,0,0.9) 100%);
         display: flex; align-items: center; justify-content: center;
         font-size: 5rem; position: relative; overflow: hidden;
         border-bottom: 1px solid #554422;
-        filter: sepia(0.4);
-        transition: all 2s;
+        flex-shrink: 0;
     }
     
     /* 涙と光の演出 */
@@ -58,7 +82,7 @@
 
     /* 本文エリア */
     #narrative-area {
-        padding: 60px 50px;
+        padding: 40px 50px;
         flex-grow: 1;
         font-size: 1.1rem;
         text-align: justify;
@@ -84,11 +108,11 @@
     #choices-container {
         padding: 40px 60px 80px;
         display: flex; flex-direction: column; gap: 20px;
-        background: linear-gradient(to top, #0d0802 0%, #221505 100%);
+        background: linear-gradient(to top, rgba(13,8,2,0.95) 0%, rgba(34,21,5,0.9) 100%);
         border-top: 1px solid #443311;
     }
     button {
-        background: #2a1a0a; color: #ccaa88; border: 1px solid #553311;
+        background: rgba(42,26,10,0.9); color: #ccaa88; border: 1px solid #553311;
         padding: 25px 30px; text-align: left; 
         font-family: "Yu Mincho", serif; font-size: 1.05rem;
         cursor: pointer; transition: all 0.5s; position: relative;
@@ -101,6 +125,11 @@
 </head>
 <body>
 
+<div id="layer-group">
+    <div id="bg-layer"></div>
+    <div id="cg-layer"><img id="cg-image" src="" alt=""></div>
+</div>
+
 <div id="game-wrapper">
     <div id="scene-header">
         <span id="scene-icon">🥀</span>
@@ -111,15 +140,71 @@
     <div id="choices-container"></div>
 </div>
 
-<script src="audio.js"></script>
+<audio id="bgm-player" loop></audio>
+<audio id="se-player"></audio>
 
 <script>
-    // ▼▼▼ シナリオデータ（愛執編：音響演出追加） ▼▼▼
+    /* =========================================
+       システム制御 (Audio & Image)
+       ========================================= */
+    const audio = {
+        bgm: document.getElementById("bgm-player"),
+        se: document.getElementById("se-player"),
+        currentBgm: "",
+        
+        playBgm: function(filename) {
+            if(this.currentBgm === filename) return;
+            this.bgm.src = `audio/${filename}.mp3`;
+            this.bgm.volume = 0.4;
+            this.bgm.play().catch(e => console.log("Audio Error"));
+            this.currentBgm = filename;
+        },
+        stopBgm: function() {
+            this.bgm.pause();
+            this.currentBgm = "";
+        },
+        playSe: function(filename) {
+            this.se.src = `audio/${filename}.mp3`;
+            this.se.volume = 0.6;
+            this.se.play().catch(e => console.log("SE Error"));
+        }
+    };
+
+    const visuals = {
+        bg: document.getElementById("bg-layer"),
+        cg: document.getElementById("cg-image"),
+        
+        setBg: function(filename) {
+            if(!filename) return;
+            this.bg.style.backgroundImage = `url('images/${filename}.jpg')`;
+        },
+        setCg: function(filename) {
+            if(!filename) {
+                this.cg.style.opacity = 0;
+            } else {
+                this.cg.src = `images/${filename}.png`;
+                this.cg.style.opacity = 1;
+            }
+        },
+        setFilter: function(type) {
+            // 背景のフィルター操作
+            if (type === "blue") {
+                this.bg.style.filter = "hue-rotate(180deg) sepia(0.2) brightness(0.8)";
+            } else if (type === "gold") {
+                this.bg.style.filter = "sepia(0.6) brightness(1.1)";
+            } else {
+                this.bg.style.filter = "sepia(0.3)";
+            }
+        }
+    };
+
+    // ▼▼▼ シナリオデータ（愛執編：画像・音声統合版） ▼▼▼
     const scenes = {
         // --- 導入 ---
         start: {
             icon: "🥀",
-            music: "rain", // ★環境音：雨（涙の比喩）
+            bg: "bg_office_night",    // ★背景：オフィス
+            music: "bgm_rain",        // ★BGM：雨（涙）
             text: `
                 <span class="name">深夜2:20 財務経理部フロア</span>
                 <p>
@@ -152,6 +237,8 @@
         // --- デスク：香りの記憶 ---
         desk_memory: {
             icon: "🧴",
+            bg: "bg_misaki_desk",     // ★背景：美咲のデスク
+            cg: "cg_hand_cream",      // ★CG：ハンドクリーム
             effect: { tears: true },
             text: `
                 <p>
@@ -180,8 +267,10 @@
         // ============================================================
         flashback_aquarium_1: {
             icon: "🐬",
-            music: "flashback", // ★BGM：回想のテーマ（悲しいMP3）
-            effect: { blue: true },
+            bg: "bg_aquarium",        // ★背景：水族館
+            cg: "",                   // CG消す
+            music: "bgm_flashback",   // ★BGM：回想
+            effect: { blue: true },   // ★青フィルター
             text: `
                 <p class="flashback">
                 （2年前の夏――）
@@ -208,6 +297,7 @@
         },
         flashback_aquarium_2: {
             icon: "💬",
+            bg: "bg_aquarium",
             effect: { blue: true },
             text: `
                 <p class="flashback">
@@ -233,6 +323,7 @@
         },
         flashback_aquarium_3: {
             icon: "🤙",
+            bg: "bg_aquarium",
             effect: { blue: true },
             text: `
                 <p class="flashback">
@@ -262,8 +353,10 @@
         // ============================================================
         flashback_birthday_1: {
             icon: "🎂",
-            music: "flashback", // ★BGM：回想のテーマ
-            effect: { gold: true },
+            bg: "bg_birthday_restaurant", // ★背景：レストラン
+            cg: "",
+            music: "bgm_flashback",
+            effect: { gold: true },       // ★金（セピア）フィルター
             text: `
                 <p class="flashback">
                 （去年の冬、彼女の誕生日――）
@@ -287,6 +380,7 @@
         },
         flashback_birthday_2: {
             icon: "🎁",
+            bg: "bg_birthday_restaurant",
             effect: { gold: true },
             text: `
                 <p class="flashback">
@@ -313,6 +407,7 @@
         },
         flashback_birthday_3: {
             icon: "✨",
+            bg: "bg_birthday_restaurant",
             effect: { gold: true },
             text: `
                 <p class="flashback">
@@ -340,7 +435,9 @@
         // --- 霊との対話（現実へ） ---
         ghost_request: {
             icon: "👻",
-            music: "rain", // ★環境音：雨に戻る
+            bg: "bg_misaki_desk",
+            cg: "cg_misaki_ghost_hollow", // ★CG：虚ろな美咲（哀しみ）
+            music: "bgm_rain",
             text: `
                 <p>
                 「会いたい……もう一度、会いたいよ」
@@ -372,7 +469,9 @@
         // --- 実家訪問：共有する悲しみ ---
         home_sorrow: {
             icon: "🏠",
-            music: "rain", // ★環境音：実家のしめやかな空気（雨）
+            bg: "bg_home_altar", // ★背景：実家の仏間
+            cg: "",
+            music: "bgm_rain",
             text: `
                 <span class="name">翌日 日曜日 美咲の実家</span>
                 <p>
@@ -399,6 +498,8 @@
 
         receive_smartphone: {
             icon: "📱",
+            bg: "bg_home_altar",
+            cg: "cg_smartphone", // ★CG：スマホ（白・割れている）
             text: `
                 <p>
                 母親は、美咲のスマホを私に託した。<br>
@@ -422,7 +523,9 @@
         // --- 月曜日：静かなる幕引き ---
         monday_end: {
             icon: "⚰️",
-            music: "mystery", // ★BGM：静かな決着
+            bg: "bg_office_night",
+            cg: "",
+            music: "bgm_mystery", // ★BGM：ミステリー（静かな決着）
             text: `
                 <span class="name">月曜日 経理部フロア</span>
                 <p>
@@ -450,8 +553,9 @@
         // --- エピローグ：慈悲と愛 ---
         epilogue_mercy: {
             icon: "🙏",
-            sound: "execution", // ★SE：処刑音（魂の解放）
-            music: "ending", // ★BGM：エンディング
+            bg: "bg_office_night",
+            sound: "se_execution", // ★SE：魂が抜ける音
+            music: "bgm_ending",   // ★BGM：エンディング
             text: `
                 <p>
                 騒然とするオフィスの中で、私は目を閉じた。<br>
@@ -482,7 +586,8 @@
         // （※内部処理用：無言で見届けるルートも同じ結末へ）
         epilogue_silence: {
             icon: "🌑",
-            music: "ending", // ★BGM：エンディング
+            bg: "bg_office_night",
+            music: "bgm_ending",
             text: `
                 <p>
                 騒然とするオフィスの中で、私はただ静かに立ち尽くしていた。<br>
@@ -521,7 +626,6 @@
     const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "emotion", sanity: 100, karma: 0 };
 
     function render(sceneId) {
-        // ★スクロール修正：必ず一番上へ★
         window.scrollTo(0, 0);
 
         if(sceneId === "to_climax") {
@@ -533,42 +637,38 @@
             return;
         }
 
-        // ★★★ 音響システム連携 (Ver.9対応) ★★★
-        if(typeof AudioEngine !== 'undefined') {
-            const scene = scenes[sceneId];
-            
-            // 効果音
-            if (scene && scene.sound) {
-                if (scene.sound === "execution") AudioEngine.playExecution();
-            }
-
-            // 音楽・環境音
-            if (scene && scene.music) {
-                if (scene.music === "rain") AudioEngine.playAmbience("rain");
-                else if (scene.music === "flashback") AudioEngine.playFlashbackTheme();
-                else if (scene.music === "mystery") AudioEngine.playMysteryTheme();
-                else if (scene.music === "ending") AudioEngine.playEndingTheme();
-                else if (scene.music === "stop") AudioEngine.stopMusic();
-            }
-        }
-        // ★★★ 音響システム連携 ここまで ★★★
-
         const scene = scenes[sceneId];
         
-        if(scene.effect) {
-            if(scene.effect.tears) dom.tears.classList.add("active");
-            if(scene.effect.blue) dom.header.style.filter = "hue-rotate(180deg) sepia(0.2)";
-            if(scene.effect.gold) dom.header.style.filter = "hue-rotate(40deg) sepia(0.5) brightness(1.2)";
-        } else {
-            dom.tears.classList.remove("active");
-            dom.header.style.filter = "sepia(0.4)";
+        // --- 1. 画像・音声制御 ---
+        if(scene) {
+            visuals.setBg(scene.bg);
+            visuals.setCg(scene.cg);
+            
+            if(scene.effect) {
+                if(scene.effect.blue) visuals.setFilter("blue");
+                else if(scene.effect.gold) visuals.setFilter("gold");
+                else visuals.setFilter("normal");
+                
+                if(scene.effect.tears) dom.tears.classList.add("active");
+                else dom.tears.classList.remove("active");
+            } else {
+                visuals.setFilter("normal");
+                dom.tears.classList.remove("active");
+            }
+
+            if(scene.music === "stop") audio.stopBgm();
+            else if(scene.music) audio.playBgm(scene.music);
+
+            if(scene.sound) audio.playSe(scene.sound);
         }
 
+        // --- 2. テキスト描画 ---
         dom.icon.innerText = scene.icon || "🥀";
         dom.text.innerHTML = scene.text;
         
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1500, fill:"forwards"});
 
+        // --- 3. 選択肢描画 ---
         dom.choices.innerHTML = "";
         scene.choices.forEach(c => {
             const btn = document.createElement("button");

@@ -23,17 +23,40 @@
         display: flex;
         justify-content: center;
         min-height: 100vh;
+        overflow: hidden; /* 背景画像用 */
+    }
+
+    /* === レイヤー構造 === */
+    #layer-group {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: -1; pointer-events: none;
+    }
+    #bg-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-size: cover; background-position: center;
+        transition: opacity 1s ease; opacity: 0.4;
+    }
+    #cg-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; justify-content: center; align-items: center;
+    }
+    #cg-image {
+        max-height: 90%; max-width: 90%;
+        opacity: 0; transition: opacity 0.3s ease;
+        filter: drop-shadow(0 0 20px #000);
     }
 
     #game-wrapper {
         width: 100%;
         max-width: 900px;
-        background-color: #050505;
+        height: 95vh;
+        background-color: rgba(5, 5, 5, 0.85); /* 半透明 */
         box-shadow: 0 0 100px rgba(0,0,0,1);
         display: flex;
         flex-direction: column;
-        border-left: 1px solid #222;
-        border-right: 1px solid #222;
+        border: 1px solid #222;
+        position: relative;
+        overflow-y: auto;
     }
 
     /* 画面揺れ演出 */
@@ -42,14 +65,14 @@
         50% { transform: translate(-1px, 2px) rotate(-1deg); }
         100% { transform: translate(1px, -2px) rotate(-1deg); }
     }
-    .shake-effect { animation: shake 0.5s infinite; }
+    .shake-effect { animation: shake 0.2s infinite; }
 
     #visual-stage {
-        height: 280px;
-        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+        height: 200px;
+        background: radial-gradient(circle at center, rgba(26,26,26,0.5) 0%, rgba(0,0,0,0.8) 100%);
         display: flex; align-items: center; justify-content: center;
         font-size: 5rem; border-bottom: 1px solid #333; position: relative; overflow: hidden;
-        transition: background 1s;
+        flex-shrink: 0;
     }
     
     #final-popup {
@@ -58,10 +81,11 @@
         color: #fff; padding: 20px; font-family: sans-serif; font-size: 0.95rem;
         box-shadow: 0 0 30px var(--accent-red);
         opacity: 0; transform: translateY(50px); transition: all 1s;
+        z-index: 10;
     }
     #final-popup.show { opacity: 1; transform: translateY(0); }
 
-    #narrative-area { padding: 80px 60px; flex-grow: 1; font-size: 1.15rem; text-align: justify; }
+    #narrative-area { padding: 40px 60px; flex-grow: 1; font-size: 1.15rem; text-align: justify; }
     p { margin-bottom: 3em; opacity: 0; animation: fadeIn 1.5s forwards; }
     @keyframes fadeIn { to { opacity: 1; } }
 
@@ -78,20 +102,21 @@
     .ending-card {
         margin-top: 50px; padding: 40px; border: 1px solid #333; text-align: center;
         opacity: 0; animation: fadeIn 3s forwards; animation-delay: 1s;
+        background: rgba(0,0,0,0.8);
     }
     .end-title { font-size: 2rem; margin-bottom: 20px; letter-spacing: 0.2em; font-weight: bold; }
 
     #choices-container {
         padding: 50px 80px 100px;
         display: flex; flex-direction: column; gap: 25px;
-        background: #080808; border-top: 1px solid #222;
+        background: rgba(8,8,8,0.9); border-top: 1px solid #222;
     }
     button {
-        background: #111; color: #888; border: 1px solid #333;
+        background: rgba(17,17,17,0.9); color: #888; border: 1px solid #333;
         padding: 30px; text-align: left; font-family: "Yu Mincho", serif; font-size: 1.1rem;
         cursor: pointer; transition: all 0.5s;
     }
-    button:hover { background: #1a1a1a; color: #fff; border-color: #666; padding-left: 40px; }
+    button:hover { background: #300; color: #fff; border-color: #800; padding-left: 40px; }
     
     /* 分岐色 */
     .btn-true { border-left: 4px solid var(--accent-blue); }
@@ -101,6 +126,11 @@
 </style>
 </head>
 <body>
+
+<div id="layer-group">
+    <div id="bg-layer"></div>
+    <div id="cg-layer"><img id="cg-image" src="" alt=""></div>
+</div>
 
 <div id="game-wrapper">
     <div id="visual-stage">
@@ -115,17 +145,63 @@
     <div id="choices-container"></div>
 </div>
 
-<script src="audio.js"></script>
+<audio id="bgm-player" loop></audio>
+<audio id="se-player"></audio>
 
 <script>
-    // ▼▼▼ シナリオデータ（最終完全版：音響演出追加） ▼▼▼
+    /* =========================================
+       システム制御 (Audio & Image)
+       ========================================= */
+    const audio = {
+        bgm: document.getElementById("bgm-player"),
+        se: document.getElementById("se-player"),
+        currentBgm: "",
+        
+        playBgm: function(filename) {
+            if(this.currentBgm === filename) return;
+            this.bgm.src = `audio/${filename}.mp3`;
+            this.bgm.volume = 0.4;
+            this.bgm.play().catch(e => console.log("Audio Error"));
+            this.currentBgm = filename;
+        },
+        stopBgm: function() {
+            this.bgm.pause();
+            this.currentBgm = "";
+        },
+        playSe: function(filename) {
+            this.se.src = `audio/${filename}.mp3`;
+            this.se.volume = 0.6;
+            this.se.play().catch(e => console.log("SE Error"));
+        }
+    };
+
+    const visuals = {
+        bg: document.getElementById("bg-layer"),
+        cg: document.getElementById("cg-image"),
+        
+        setBg: function(filename) {
+            if(!filename) return;
+            this.bg.style.backgroundImage = `url('images/${filename}.jpg')`;
+        },
+        setCg: function(filename) {
+            if(!filename) {
+                this.cg.style.opacity = 0;
+            } else {
+                this.cg.src = `images/${filename}.png`;
+                this.cg.style.opacity = 1;
+            }
+        }
+    };
+
+    // ▼▼▼ シナリオデータ（画像・音声統合版） ▼▼▼
     const scenes = {
         // ----------------------------------------------------------------
         // 第1章：偽りの平穏
         // ----------------------------------------------------------------
         start: {
             icon: "☕",
-            music: "office", // ★環境音：平穏なオフィス
+            bg: "bg_office_night",    // ★背景：オフィス
+            music: "bgm_clock",       // ★BGM：平穏な環境音
             text: `
                 <span class="name">5月20日 18:30 経理部フロア</span>
                 <p>
@@ -159,7 +235,8 @@
         // ----------------------------------------------------------------
         confession_scene: {
             icon: "💌",
-            music: "confession", // ★BGM：告白のテーマ（幸せなMP3）
+            bg: "bg_archive",        // ★背景：資料室
+            music: "bgm_confession", // ★BGM：告白のテーマ
             text: `
                 <p>
                 資料室の重い扉を閉めると、周囲の雑音がかき消された。<br>
@@ -193,6 +270,7 @@
 
         hesitation: {
             icon: "💓",
+            bg: "bg_archive",
             text: `
                 <p>
                 目の前に、私がずっと欲しかった「普通の幸せ」がある。<br>
@@ -217,8 +295,9 @@
         // ----------------------------------------------------------------
         intrusion: {
             icon: "📱",
-            sound: "ping", // ★SE：通知音（心臓音コンボ）
-            music: "stop", // ★BGM停止：静寂
+            bg: "bg_archive",
+            sound: "se_ping",  // ★SE：通知音
+            music: "stop",     // ★BGM停止
             text: `
                 <p>
                 <strong style="color:#b00; font-size:1.5rem;">ブブブブブブッ！！！</strong>
@@ -247,9 +326,11 @@
 
         poltergeist: {
             icon: "👻",
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_dead", // ★CG：死体の美咲が出現
             action: { shake: true },
-            sound: "glitch", // ★SE：バグ音
-            music: "horror", // ★BGM：恐怖のテーマ
+            sound: "se_glitch",         // ★SE：バグ音
+            music: "bgm_horror",        // ★BGM：恐怖のテーマ
             text: `
                 <p>
                 <span class="ghost-voice">
@@ -283,7 +364,9 @@
         // ----------------------------------------------------------------
         ultimatum: {
             icon: "⚖️",
-            music: "abyss", // ★BGM：深淵の地鳴り
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_dead",
+            music: "bgm_abyss", // ★BGM：深淵
             text: `
                 <p>
                 <span class="highlight">ギギギギギ……ッ！</span>
@@ -311,6 +394,8 @@
         // ============================================================
         bad_1_protect: {
             icon: "🛡️",
+            bg: "bg_archive",
+            cg: "", // CG消す
             text: `
                 <p>「危ない！ 梨奈ちゃん！」</p>
                 <p>私は考えるよりも先に体が動いていた。<br>
@@ -326,8 +411,9 @@
         },
         bad_2_impact: {
             icon: "💥",
-            sound: "slam", // ★SE：激しい打撃音（Slam）
-            music: "tinnitus", // ★Ambience：耳鳴り（衝撃後）
+            bg: "bg_archive",
+            sound: "se_slam",     // ★SE：打撃音
+            music: "bgm_tinnitus",// ★BGM：耳鳴り
             text: `
                 <p><span class="ghost-voice">『……裏切ッタネ。亜久斗クン。』</span></p>
                 <p>耳元で、美咲の冷たい溜息が聞こえた気がした。</p>
@@ -344,8 +430,10 @@
         },
         end_bad: {
             icon: "⚰️",
-            music: "ending", // ★BGM：エンディング曲
-            effect: { stopShake: true, redBg: true },
+            bg: "bg_archive", 
+            cg: "cg_misaki_ghost_hollow", // ★CG：虚ろな瞳の美咲（お迎え）
+            music: "bgm_ending",
+            effect: { stopShake: true, redBg: true }, // ★効果：画面を赤く
             text: `
                 <p>痛みはすぐに消えた。代わりに、深い闇が私を包み込む。</p>
                 <p>闇の向こうから、美咲が歩いてくるのが見えた。<br>
@@ -368,7 +456,9 @@
         // ============================================================
         true_1_act: {
             icon: "💔",
-            sound: "slam", // ★SE：机叩き音（言葉の暴力）
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_dead", // ★CG：監視する美咲
+            sound: "se_slam", 
             text: `
                 <p>梨奈を守る方法は一つしかない。<br>
                 美咲（霊）を満足させること。<br>
@@ -384,6 +474,8 @@
         },
         true_2_reject: {
             icon: "🤬",
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_dead",
             text: `
                 <p>「君の仕事が遅いから手伝ってただけだ！ 迷惑なんだよ！」<br>
                 「付き合う？ 本気か？ 俺の評価が下がるだろ！？」</p>
@@ -401,7 +493,9 @@
         },
         end_true: {
             icon: "🏚️",
-            music: "ending", // ★BGM：エンディング曲
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_hollow", // ★CG：満足げな美咲
+            music: "bgm_ending",
             effect: { stopShake: true },
             text: `
                 <p>彼女の足音が遠ざかると同時に、棚の揺れがピタリと止まった。<br>
@@ -428,6 +522,8 @@
         // ============================================================
         dark_1_push: {
             icon: "😈",
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_hollow", // ★CG：誘惑する美咲
             text: `
                 <p>ふつふつと、黒い感情が湧き上がってくる。<br>
                 復讐の快感を知ってしまった私の心は、既に人間のものではなくなっていたのかもしれない。</p>
@@ -442,7 +538,8 @@
         },
         dark_2_sacrifice: {
             icon: "🩸",
-            sound: "execution", // ★SE：処刑音（先輩の時と同じ音）
+            bg: "bg_archive",
+            sound: "se_execution", // ★SE：処刑音
             text: `
                 <p>私は梨奈の肩を、思い切り蹴り飛ばした。</p>
                 <p>「きゃあっ！？」<br>
@@ -460,7 +557,9 @@
         },
         end_dark: {
             icon: "👁️",
-            music: "ending", // ★BGM：エンディング曲
+            bg: "bg_archive",
+            cg: "cg_misaki_ghost_dead", // ★CG：狂気の美咲
+            music: "bgm_ending",
             effect: { stopShake: true, redBg: true },
             text: `
                 <p>私はそれを見下ろしながら、腹の底から笑い出した。<br>
@@ -503,48 +602,33 @@
             return;
         }
 
-        // ★★★ 音響システム連携 (Ver.9対応) ★★★
-        if(typeof AudioEngine !== 'undefined') {
-            const scene = scenes[sceneId];
+        const scene = scenes[sceneId];
+        
+        // --- 1. 画像・音声制御 ---
+        if(scene) {
+            visuals.setBg(scene.bg);
+            visuals.setCg(scene.cg);
             
-            // 効果音
-            if (scene && scene.sound) {
-                if (scene.sound === "ping") { AudioEngine.playPing(); AudioEngine.playHeartbeat(); }
-                else if (scene.sound === "slam") AudioEngine.playSlam();
-                else if (scene.sound === "execution") AudioEngine.playExecution();
-                else if (scene.sound === "stamp") AudioEngine.playStamp();
-                else if (scene.sound === "glitch") AudioEngine.playGlitch();
-            }
+            if(scene.music === "stop") audio.stopBgm();
+            else if(scene.music) audio.playBgm(scene.music);
 
-            // 音楽・環境音
-            if (scene && scene.music) {
-                if (scene.music === "confession") AudioEngine.playConfessionTheme();
-                else if (scene.music === "ending") AudioEngine.playEndingTheme();
-                else if (scene.music === "horror") AudioEngine.playHorrorTheme();
-                else if (scene.music === "tinnitus") AudioEngine.playAmbience("tinnitus");
-                else if (scene.music === "abyss") AudioEngine.playAmbience("abyss");
-                else if (scene.music === "office") AudioEngine.playAmbience("office");
-                else if (scene.music === "stop") AudioEngine.stopMusic();
-            }
+            if(scene.sound) audio.playSe(scene.sound);
         }
-        // ★★★ 音響システム連携 ここまで ★★★
 
-
-        // --- 最終分岐の生成 ---
+        // --- 2. 最終分岐生成（カルマ値で変化） ---
         if (sceneId === "ultimatum") {
             const c = [];
             c.push({ text: "「危ない！」と叫んで梨奈を庇う", next: "bad_1_protect", class: "btn-bad" });
             c.push({ text: "「迷惑なんだよ！」と罵倒して梨奈を遠ざける", next: "true_1_act", class: "btn-true" });
             
+            // 復讐ルート通過済み（カルマが高い）なら殺意ルート解放
             if (savedData.karma >= 50) {
                 c.push({ text: "【殺意】梨奈を蹴り飛ばし、美咲に捧げる", next: "dark_1_push", class: "btn-dark" });
             }
             scenes["ultimatum"].choices = c;
         }
 
-        const scene = scenes[sceneId];
-        
-        // 演出処理
+        // --- 3. 演出処理 ---
         if (scene.action && scene.action.popup) {
             dom.popupMsg.innerHTML = scene.action.popup;
             dom.popup.classList.add("show");
@@ -555,17 +639,17 @@
         if (scene.effect) {
             if(scene.effect.stopShake) dom.wrapper.classList.remove("shake-effect");
             if(scene.effect.redBg) {
-                dom.wrapper.style.backgroundColor = "#1a0000";
-                document.getElementById("visual-stage").style.background = "#300";
+                // 背景を赤く染める
+                document.getElementById("bg-layer").style.backgroundColor = "#500";
+                document.getElementById("bg-layer").style.backgroundBlendMode = "multiply";
             }
         }
 
-        // 画面描画
+        // --- 4. 画面描画 ---
         dom.icon.innerText = scene.icon || "🌸";
         dom.text.innerHTML = scene.text;
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
 
-        // 選択肢生成
         dom.choices.innerHTML = "";
         if (scene.choices) {
             scene.choices.forEach(c => {
