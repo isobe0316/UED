@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>埋まらない予実差の闇 - Chapter 1: Logic</title>
+<style>
+    /* ▼▼▼ 論理の蒼とデジタルの狂気 ▼▼▼ */
+    :root {
+        --bg-color: #00050a;
+        --text-main: #c0d0e0;
+        --accent-blue: #007acc;
+        --accent-cyan: #00ffff;
+        --accent-error: #ff3333;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+        line-height: 2.4;
+        letter-spacing: 0.05em;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+
+    #game-wrapper {
+        width: 100%;
+        max-width: 840px;
+        background-color: #020810;
+        box-shadow: 0 0 50px rgba(0, 122, 204, 0.2);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid #003366;
+        border-right: 1px solid #003366;
+    }
+
+    /* ビジュアルヘッダー */
+    #scene-header {
+        height: 260px;
+        background: radial-gradient(circle at center, #001a33 0%, #000 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 5rem; position: relative; overflow: hidden;
+        border-bottom: 1px solid #004488;
+    }
+
+    /* デジタルノイズ演出 */
+    .glitch-overlay {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: repeating-linear-gradient(
+            0deg,
+            rgba(0, 255, 255, 0.05),
+            rgba(0, 255, 255, 0.05) 1px,
+            transparent 1px,
+            transparent 2px
+        );
+        pointer-events: none; opacity: 0.5;
+    }
+    .scanline {
+        width: 100%; height: 5px; background: rgba(0, 255, 255, 0.3);
+        position: absolute; top: 0; left: 0; animation: scan 3s linear infinite; opacity: 0.3;
+    }
+    @keyframes scan { 0% {top:0%} 100% {top:100%} }
+
+    /* 本文エリア */
+    #narrative-area {
+        padding: 60px 50px;
+        flex-grow: 1;
+        font-size: 1.1rem;
+        text-align: justify;
+    }
+    p { margin-bottom: 2.5em; opacity: 0; animation: fadeIn 1s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .highlight { color: var(--accent-cyan); font-weight: bold; font-family: monospace; }
+    .error { color: var(--accent-error); font-weight: bold; font-family: monospace; }
+    .name { color: var(--accent-blue); font-weight: bold; font-family: sans-serif; font-size: 0.9em; display: block; margin-bottom: 1em; }
+    
+    /* システムメッセージ風 */
+    .sys-msg { 
+        font-family: "Consolas", "Monaco", monospace;
+        background: rgba(0, 20, 40, 0.8);
+        border: 1px solid var(--accent-blue);
+        padding: 15px; margin: 2em 0;
+        color: var(--accent-cyan); font-size: 0.9rem;
+        box-shadow: 0 0 10px rgba(0,255,255,0.1);
+    }
+
+    /* 選択肢エリア */
+    #choices-container {
+        padding: 40px 60px 80px;
+        display: flex; flex-direction: column; gap: 20px;
+        background: linear-gradient(to top, #000 0%, #020810 100%);
+        border-top: 1px solid #003366;
+    }
+    button {
+        background: #051020; color: #8ab; border: 1px solid #004488;
+        padding: 25px 30px; text-align: left; 
+        font-family: "Yu Mincho", serif; font-size: 1.05rem;
+        cursor: pointer; transition: all 0.3s; position: relative;
+    }
+    button:hover { background: #002244; color: #fff; border-color: #00ffff; padding-left: 40px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); }
+    button::before { content: "💻"; position: absolute; left: 15px; opacity: 0; transition: opacity 0.3s; font-size: 0.8em; }
+    button:hover::before { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="scene-header">
+        <span id="scene-icon">💻</span>
+        <div class="glitch-overlay"></div>
+        <div class="scanline"></div>
+    </div>
+
+    <div id="narrative-area"></div>
+    <div id="choices-container"></div>
+</div>
+
+<script>
+    // ▼▼▼ シナリオデータ（論理編・分岐強化版） ▼▼▼
+    const scenes = {
+        // ----------------------------------------------------------
+        // 導入
+        // ----------------------------------------------------------
+        start: {
+            icon: "⌨️",
+            text: `
+                <span class="name">深夜2:20 財務経理部フロア</span>
+                <p>
+                「……馬鹿な」
+                </p>
+                <p>
+                私は冷ややかに呟き、眉間を揉んだ。<br>
+                幽霊？ 呪い？ そんな非科学的なものが、この高度にデジタル化されたオフィスに存在するはずがない。<br>
+                これは明らかに<span class="highlight">人為的な工作（クラッキング）</span>だ。
+                </p>
+                <p>
+                「アカウントの削除漏れか……あるいは、誰かが美咲のパスワードを盗んで悪戯しているのか」
+                </p>
+                <p>
+                もし後者なら、許しがたいセキュリティ違反だ。<br>
+                死者を冒涜し、私の業務を妨害する犯人を突き止めなければならない。<br>
+                私は感情を排し、管理者権限でコンソールを開いた。
+                </p>
+                <div class="sys-msg">
+                > CONNECTING TO SERVER... [OK]<br>
+                > TARGET: [MISAKI_FPA]<br>
+                > STATUS: ACTIVE (UNAUTHORIZED)
+                </div>
+            `,
+            choices: [
+                { text: "【攻撃】アカウントを強制削除（Kill Process）する", next: "branch_attack" },
+                { text: "【防御】ネットワークを切断して隔離する", next: "branch_defend" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 分岐A：攻撃的対抗（強制削除）
+        // ----------------------------------------------------------
+        branch_attack: {
+            icon: "⚔️",
+            text: `
+                <p>
+                「排除してやる」
+                </p>
+                <p>
+                私はコマンドを打ち込んだ。<br>
+                『DELETE USER MISAKI_FPA /FORCE』<br>
+                エンターキーを叩く。これで終わりだ。
+                </p>
+                <p>
+                しかし、画面には赤い文字列が奔流のように溢れ出した。
+                </p>
+                <div class="sys-msg" style="border-color:red; color:red;">
+                > ERROR: ACCESS DENIED<br>
+                > ERROR: PERMISSION LEVEL INSUFFICIENT<br>
+                > YOU CANNOT DELETE ME.
+                </div>
+                <p>
+                「なっ……権限がないだと？」
+                </p>
+                <p>
+                PCが異常な熱を発し、冷却ファンがジェット機のような轟音を立て始めた。<br>
+                画面の向こうから、何かが「逆流」してくる。<br>
+                キーボードが勝手に打鍵され、私の意思を無視して文字を打ち込み始めた。
+                </p>
+                <p>
+                <span class="highlight">『私ヲ消ソウトシタネ？』</span><br>
+                <span class="highlight">『許サナイ。見テ。コレガ現実ダヨ。』</span>
+                </p>
+            `,
+            choices: [
+                { text: "勝手にファイルが開かれる", next: "common_shadow_ledger" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 分岐B：防御的対抗（切断）
+        // ----------------------------------------------------------
+        branch_defend: {
+            icon: "🛡️",
+            text: `
+                <p>
+                「まずは隔離だ。被害を広げるわけにはいかない」
+                </p>
+                <p>
+                私は冷静にLANケーブルを引き抜き、Wi-Fiアダプターを無効化した。<br>
+                物理層での遮断。これで外部からの操作は不可能なはずだ。
+                </p>
+                <p>
+                しかし、異変はPCではなく、背後で起きた。
+                </p>
+                <p>
+                <strong style="color:var(--accent-cyan);">ウィィィィィン……ガシャン！</strong>
+                </p>
+                <p>
+                複合機（プリンター）が勝手に起動し、猛烈な勢いで印刷を始めたのだ。<br>
+                吐き出される大量のA4用紙。<br>
+                そこには、びっしりとバイナリデータと、不気味なメッセージが印字されていた。
+                </p>
+                <p>
+                <span class="error">『無視スルナ』</span><br>
+                <span class="error">『ネットワークハ、ドコニデモアル』</span>
+                </p>
+                <p>
+                「馬鹿な……電源すら入れていないのに！」<br>
+                最後に吐き出された一枚の紙。それは『裏帳簿』というタイトルのExcelシートだった。
+                </p>
+            `,
+            choices: [
+                { text: "紙を拾い上げる", next: "common_shadow_ledger" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 合流：裏帳簿の開示
+        // ----------------------------------------------------------
+        common_shadow_ledger: {
+            icon: "📂",
+            text: `
+                <p>
+                画面上（あるいは印刷された紙）に展開されたデータ。<br>
+                それは、膨大な量の<span class="highlight">不正会計記録</span>だった。
+                </p>
+                <p>
+                権田部長による架空売上計上、利益の粉飾。<br>
+                犬飼先輩による業者へのキックバック要求と、交際費の私的流用。<br>
+                すべて、日付と金額が論理的に整合している「完璧な証拠」だ。
+                </p>
+                <p>
+                「これが……美咲が隠し持っていた爆弾か」
+                </p>
+                <p>
+                <div class="sys-msg">
+                > SYSTEM MESSAGE:<br>
+                > "これガ、私ノ未処理残高（恨み）デショ？<br>
+                > 発生源（Source）ヲ、特定シテ。"
+                </div>
+                </p>
+                <p>
+                画面に地図が表示される。示されたIPアドレスの物理的な位置。<br>
+                それは、美咲の実家だった。<br>
+                「実家の端末がホスト（親機）になっているのか……」
+                </p>
+            `,
+            choices: [
+                { text: "この「バグ」の発生源を物理的に叩く", next: "logic_decision" }
+            ]
+        },
+
+        logic_decision: {
+            icon: "🧠",
+            text: `
+                <p>
+                私は汗ばんだ手でネクタイを緩めた。<br>
+                論理的に考えろ。<br>
+                幽霊になど会いにいくのではない。<br>
+                システムトラブルのトラブルシューティングに行くだけだ。
+                </p>
+                <p>
+                「実家に行って、そのデバイスを回収し、シャットダウンすれば終わる」
+                </p>
+                <p>
+                私はUSBメモリにこの不正データをバックアップし、立ち上がった。<br>
+                これは復讐ではない。<br>
+                <span class="highlight">不整合（エラー）の修正</span>だ。
+                </p>
+            `,
+            choices: [
+                { text: "翌日、実家へ向かう", next: "logic_home_visit" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 実家訪問：対話の分岐
+        // ----------------------------------------------------------
+        logic_home_visit: {
+            icon: "🏠",
+            text: `
+                <span class="name">翌日 日曜日 美咲の実家</span>
+                <p>
+                私は美咲の実家を訪れた。<br>
+                インターホンを押すと、やつれ果てた母親が出てきた。<br>
+                「……よく来たわね、裏切り者」
+                </p>
+                <p>
+                仏間に通されると、そこにはひび割れたスマホが祀られていた。<br>
+                あれだ。あれが送信元だ。<br>
+                回収しなければならないが、母親は敵意を剥き出しにしている。どうする？
+                </p>
+            `,
+            choices: [
+                { text: "【欺瞞】「訴訟になりますよ」と嘘をついて脅す", next: "branch_lie" },
+                { text: "【強行】問答無用で奪い取る", next: "branch_force" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 分岐C：欺瞞（冷徹な論理）
+        // ----------------------------------------------------------
+        branch_lie: {
+            icon: "⚖️",
+            text: `
+                <p>
+                私は表情一つ変えずに嘘をついた。
+                </p>
+                <p>
+                「お母様。残念ながら、美咲さんの端末から社内サーバーへの不正アクセスが確認されました。<br>
+                このままでは、ご遺族に対して<span class="error">数千万円の損害賠償請求</span>が行われる可能性があります」
+                </p>
+                <p>
+                「そ、そんな……あの子は死んでるのよ！？」
+                </p>
+                <p>
+                「ええ。ですが、管理責任は問われます。<br>
+                今すぐ端末を私が回収し、ログを消去すれば、穏便に済ませられます。<br>
+                どうしますか？ 会社と戦いますか？」
+                </p>
+                <p>
+                母親は青ざめ、震える手でスマホを差し出した。<br>
+                「お、お願いします……あの子の名誉を守ってください……」
+                </p>
+                <p>
+                チョロいものだ。<br>
+                私はスマホを受け取り、一礼して家を出た。
+                </p>
+            `,
+            choices: [
+                { text: "スマホ内の証拠データを精査する", next: "monday_prep" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 分岐D：強行（物理的排除）
+        // ----------------------------------------------------------
+        branch_force: {
+            icon: "👊",
+            text: `
+                <p>
+                議論など無駄だ。私は立ち上がり、仏壇に手を伸ばした。
+                </p>
+                <p>
+                「なっ、何をするの！？」
+                </p>
+                <p>
+                「これは会社の所有物です。回収します」<br>
+                私は母親の手を強引に振り払い、スマホを掴み取った。
+                </p>
+                <p>
+                「返して！ ドロボウ！ 人殺し！」<br>
+                母親が私の背中にしがみつき、爪を立てる。<br>
+                「痛っ……離せ！」
+                </p>
+                <p>
+                私は彼女を突き飛ばした。<br>
+                畳の上に倒れ込み、泣き叫ぶ母親。<br>
+                後味は最悪だが、目的の物は手に入れた。<br>
+                私は逃げるように家を出た。
+                </p>
+            `,
+            choices: [
+                { text: "乱れた服を直し、スマホを確認する", next: "monday_prep" }
+            ]
+        },
+
+        // ----------------------------------------------------------
+        // 合流：月曜日の告発
+        // ----------------------------------------------------------
+        monday_prep: {
+            icon: "📧",
+            text: `
+                <span class="name">月曜日 経理部フロア</span>
+                <p>
+                私はオフィスに戻り、自身のPCと美咲のスマホを接続した。<br>
+                中身は「証拠」の宝庫だった。<br>
+                特に、権田部長が美咲に「数字をいじれ」と強要している音声データは決定的だった。
+                </p>
+                <p>
+                「これで全てのバグ（不正）をパージできる」
+                </p>
+                <p>
+                私は迷わず、全社員・全役員・さらには親会社の監査部門を含むメーリングリストを作成した。<br>
+                件名は『【重要】内部統制に関わる重大な不正の告発および証拠提出』。<br>
+                本文には、事実だけを淡々と記述し、ファイルを添付した。
+                </p>
+            `,
+            choices: [
+                { text: "送信ボタンを押す", next: "monday_purge" }
+            ]
+        },
+
+        monday_purge: {
+            icon: "🔔",
+            text: `
+                <p>
+                <div class="sys-msg">
+                > SENDING... [COMPLETE]<br>
+                > MAIL SENT TO 1,204 RECIPIENTS.
+                </div>
+                </p>
+                <p>
+                エンターキーを押した瞬間だった。
+                </p>
+                <p>
+                <strong style="color:var(--accent-cyan); font-size:1.2rem;">ピン！ ピン！ ピロン！♪</strong>
+                </p>
+                <p>
+                静寂に包まれていたフロアで、数台のPCが通知音を上げた。<br>
+                それはすぐに十台、五十台と広がり、数秒後にはフロア全体が電子音の不協和音に包まれた。<br>
+                数百人の社員のPC画面に、私の送った告発メールが一斉にポップアップする。
+                </p>
+                <p>
+                「なんだこれ……？」<br>
+                「おい、これ添付ファイル開いていいのか？」<br>
+                「うわっ、権田部長の音声データだ……！ マジかよ」
+                </p>
+                <p>
+                ざわめきが波紋のように広がり、やがて怒号と混乱に変わっていく。<br>
+                私はそれを、腕を組んで冷ややかに眺めていた。
+                </p>
+            `,
+            choices: [
+                { text: "パニックに陥る二人を見る", next: "inukai_fall" }
+            ]
+        },
+
+        // --- 犬飼の排除 ---
+        inukai_fall: {
+            icon: "⚠️",
+            text: `
+                <p>
+                不正を暴かれた<span class="highlight">犬飼先輩</span>の反応は劇的だった。<br>
+                彼は真っ青な顔で立ち上がり、周囲の視線に耐えきれず後ずさりした。
+                </p>
+                <p>
+                「ち、違う！ 俺じゃない！ 俺はやらされただけだ！」
+                </p>
+                <p>
+                錯乱した彼は、足をもつれさせ、背後で稼働していた大型シュレッダーに激突した。<br>
+                その拍子に、彼のネクタイが投入口へと吸い込まれる。
+                </p>
+                <p>
+                「ぎゃあああああ！！」
+                </p>
+                <p>
+                機械的な駆動音と共に、彼の悲鳴が途絶えた。<br>
+                あわてて同僚たちが駆け寄り、緊急停止ボタンを押す。<br>
+                それは単なる不注意による労働災害だ。<br>
+                論理的にはそう説明がつく。……あまりにタイミングが良すぎることを除けば。
+                </p>
+            `,
+            choices: [
+                { text: "次は部長だ", next: "gonda_collapse" }
+            ]
+        },
+
+        // --- 権田の排除 ---
+        gonda_collapse: {
+            icon: "💀",
+            text: `
+                <p>
+                そして<span class="highlight">権田部長</span>。<br>
+                彼は社長室に呼び出され、厳しい追及を受けていた。<br>
+                モニター越しに見えるその顔色は、土気色を通り越して灰色だった。
+                </p>
+                <p>
+                「ぐ、うぅ……ッ！」
+                </p>
+                <p>
+                突然、彼は胸を掻きむしり、その場に崩れ落ちた。<br>
+                急性心不全。<br>
+                長年の不正隠蔽によるストレスと、発覚のショックが引き金を引いたのだろう。<br>
+                彼もまた、そのまま帰らぬ人となった。
+                </p>
+                <p>
+                「……バグは排除された」
+                </p>
+                <p>
+                私は冷ややかにそう結論づけた。<br>
+                これでオフィスの秩序は保たれた。<br>
+                しかし、私のPCの画面にはまだ、消えない文字が点滅していた。
+                </p>
+                <div class="sys-msg">
+                > SYSTEM STATUS: UNSTABLE<br>
+                > UNKNOWN USER IS STILL CONNECTED.
+                </div>
+            `,
+            choices: [
+                { text: "それでも、日常は続く（5月へ）", next: "to_climax" }
+            ]
+        }
+    };
+
+    // ▼▼▼ エンジン部 ▼▼▼
+    const dom = {
+        text: document.getElementById("narrative-area"),
+        choices: document.getElementById("choices-container"),
+        icon: document.getElementById("scene-icon")
+    };
+
+    // セーブデータ管理
+    const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "logic", sanity: 100, karma: 0 };
+
+    function render(sceneId) {
+        // ★スクロール修正：必ず一番上へ★
+        window.scrollTo(0, 0);
+
+        // --- 特殊処理：クライマックスへ遷移 ---
+        if(sceneId === "to_climax") {
+            savedData.route = "logic";
+            savedData.items = ["不正ログデータ", "美咲のスマホ(証拠品)"];
+            localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
+            
+            window.location.href = "climax.html";
+            return;
+        }
+
+        const scene = scenes[sceneId];
+        
+        // 画面描画
+        dom.icon.innerText = scene.icon || "💻";
+        dom.text.innerHTML = scene.text;
+        
+        // テキストフェードイン
+        dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
+
+        // 選択肢生成
+        dom.choices.innerHTML = "";
+        scene.choices.forEach(c => {
+            const btn = document.createElement("button");
+            btn.innerText = c.text;
+            btn.onclick = () => render(c.next);
+            dom.choices.appendChild(btn);
+        });
+    }
+
+    // 開始
+    render("start");
+
+</script>
+</body>
+</html>

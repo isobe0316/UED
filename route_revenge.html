@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>埋まらない予実差の闇 - Chapter 1: Revenge</title>
+<style>
+    /* ▼▼▼ 復讐の赤と闇のデザイン ▼▼▼ */
+    :root {
+        --bg-color: #050000;
+        --text-main: #d0d0d0;
+        --accent-red: #8a0000;
+        --accent-blood: #ff0000;
+        --accent-ghost: #ff4444;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+        line-height: 2.4;
+        letter-spacing: 0.05em;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+
+    #game-wrapper {
+        width: 100%;
+        max-width: 840px;
+        background-color: #0f0202;
+        box-shadow: 0 0 100px rgba(138, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        border-left: 2px solid #300;
+        border-right: 2px solid #300;
+    }
+
+    /* ビジュアルヘッダー */
+    #scene-header {
+        height: 260px;
+        background: radial-gradient(circle at center, #300000 0%, #000 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 5rem;
+        position: relative;
+        overflow: hidden;
+        border-bottom: 1px solid #500;
+        transition: filter 0.5s;
+    }
+    
+    .blood-overlay {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><circle cx="50%" cy="50%" r="40%" fill="rgba(255,0,0,0.1)" filter="url(%23blur)"/></svg>');
+        opacity: 0; transition: opacity 2s; pointer-events: none;
+    }
+    .blood-overlay.active { opacity: 1; }
+
+    /* 本文エリア */
+    #narrative-area {
+        padding: 60px 50px;
+        flex-grow: 1;
+        font-size: 1.1rem;
+        text-align: justify;
+    }
+    
+    p { margin-bottom: 2.5em; opacity: 0; animation: fadeIn 1s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .highlight { color: var(--accent-blood); font-weight: bold; }
+    .name { color: #b55; font-weight: bold; font-family: sans-serif; font-size: 0.9em; display: block; margin-bottom: 1em; }
+    
+    .ghost-voice { 
+        color: var(--accent-ghost); font-family: monospace; 
+        text-shadow: 2px 0 5px rgba(255,0,0,0.5);
+        border-left: 3px solid var(--accent-red); padding-left: 20px; margin: 2em 0;
+        letter-spacing: 0.1em;
+    }
+    
+    .glitch { animation: glitch 0.2s infinite; display: inline-block; font-weight: bold; color: #f00; }
+    @keyframes glitch { 0% {transform: translate(0)} 20% {transform: translate(-2px, 2px)} 40% {transform: translate(2px, -2px)} 100% {transform: translate(0)} }
+
+    /* エンディングカード */
+    .ending-card {
+        margin-top: 50px; padding: 40px; border: 1px solid #666; text-align: center;
+        color: #888; opacity: 0; animation: fadeIn 3s forwards; animation-delay: 1s;
+    }
+    .end-title { font-size: 2rem; margin-bottom: 20px; letter-spacing: 0.2em; font-weight: bold; color: #666; }
+
+    /* 選択肢エリア */
+    #choices-container {
+        padding: 40px 60px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        background: linear-gradient(to top, #000 0%, #0f0202 100%);
+        border-top: 1px solid #300;
+    }
+    button {
+        background: #1a0505; color: #a88; border: 1px solid #522;
+        padding: 25px 30px; text-align: left; 
+        font-family: "Yu Mincho", serif; font-size: 1.05rem;
+        cursor: pointer; transition: all 0.3s; position: relative;
+    }
+    button:hover { background: #300; color: #fff; border-color: #f00; padding-left: 40px; box-shadow: 0 0 15px rgba(255,0,0,0.2); }
+    button::before { content: "🔪"; position: absolute; left: 15px; opacity: 0; transition: opacity 0.3s; color: #f00; font-size: 0.8em; }
+    button:hover::before { opacity: 1; }
+
+    /* 拒絶ボタン */
+    .btn-refuse { border-color: #666; color: #888; }
+    .btn-refuse:hover { background: #222; border-color: #fff; box-shadow: none; }
+    .btn-refuse::before { content: "✋"; color: #fff; }
+
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="scene-header">
+        <span id="scene-icon">💢</span>
+        <div id="blood-fx" class="blood-overlay"></div>
+    </div>
+
+    <div id="narrative-area"></div>
+    <div id="choices-container"></div>
+</div>
+
+<script>
+    // ▼▼▼ シナリオデータ（復讐編・泥沼版） ▼▼▼
+    const scenes = {
+        // --- 導入：共犯契約 ---
+        start: {
+            icon: "💢",
+            text: `
+                <span class="name">深夜2:20 財務経理部フロア</span>
+                <p>「ふざけるな！！」</p>
+                <p>私は画面に向かって怒鳴りつけた。<br>
+                その声は、恐怖からではなく、底なしの憎悪から出たものだった。</p>
+                <p>「美咲を殺したのは会社だ！ 権田部長だ！ 犬飼だ！ 俺じゃない！」<br>
+                「なんで俺のところに来るんだよ！ 文句があるならあいつらのところへ行けよ！」</p>
+                <p>罪悪感の裏返し。自己防衛のための醜い逆ギレ。<br>
+                私の絶叫が深夜のオフィスに吸い込まれた瞬間、画面の向こうの気配が変わった。<br>
+                温度が急激に下がる。モニターが赤黒く明滅を始める。</p>
+                <p class="ghost-voice">
+                『……ソウダネ。亜久斗クンハ悪クナイ。』<br>
+                『悪イノハ、アイツラダ。』
+                </p>
+                <p>美咲の声が、鼓膜ではなく脳髄に直接響いてくる。<br>
+                彼女は怒っているのではない。笑っているのだ。<br>
+                愛する男が、自分と同じ「憎しみ」の色に染まったことを喜んでいるのだ。</p>
+                <p class="ghost-voice">
+                『ジャア、手伝ッテクレル？ 監査（復讐）ヲ。』
+                </p>
+            `,
+            choices: [
+                { text: "「ああ、やってやる」と答える", next: "download_data" }
+            ]
+        },
+
+        // --- データ入手 ---
+        download_data: {
+            icon: "💾",
+            effect: { flag: "got_data" },
+            text: `
+                <p>画面に、Excelファイルが添付される。<br>
+                ファイル名：『裏帳簿_Confidential.xlsx』。</p>
+                <p>私は震える手でダウンロードボタンを押した。<br>
+                ファイルの中身は、凄惨なものだった。<br>
+                権田部長による交際費の私的流用、架空取引の記録。<br>
+                犬飼先輩が美咲のPCに不正アクセスし、データを改ざんしていたログ。<br>
+                そして、隠しフォルダには音声データが入っていた。</p>
+                <p>再生ボタンを押す。<br>
+                『お前の代わりなんていくらでもいるんだよ！ 死んで詫びろ！』<br>
+                権田の罵声。美咲の嗚咽。<br>
+                『自殺とかマジ勘弁ｗ』<br>
+                犬飼の嘲笑。</p>
+                <p>私の体中を、マグマのような殺意が駆け巡る。<br>
+                視界が赤く染まる。</p>
+                <p>「殺す……」<br>
+                自然と口をついて出た。<br>
+                「物理的に、社会的に、抹殺してやる」</p>
+                <p class="ghost-voice">
+                『ウレシイ。亜久斗クン、大好キ。』<br>
+                『明日、実家ニ来テ。最後ノ「武器」ヲ渡スから。』
+                </p>
+            `,
+            choices: [
+                { text: "翌日、美咲の実家へ向かう", next: "visit_home" }
+            ]
+        },
+
+        // --- 実家訪問 ---
+        visit_home: {
+            icon: "🏠",
+            text: `
+                <span class="name">翌日 日曜日 美咲の実家</span>
+                <p>私は導かれるように美咲の実家を訪れていた。<br>
+                インターホンを押すと、やつれた母親が出てきた。<br>
+                以前会った時の穏やかな面影はない。頬がこけ、目が落ち窪み、狂気と正気の境界を彷徨っているようだった。</p>
+                <p>「……よく来たわね、裏切り者」</p>
+                <p>通された部屋は薄暗く、線香の匂いが充満していた。<br>
+                仏壇の遺影だけが、楽しかった頃の笑顔で私を見つめている。<br>
+                母親が、画面の割れたスマホを私に突きつけてくる。美咲の遺品だ。</p>
+                <p>「これを見なさい！ あんたへの未練と、あいつらへの呪いが書いてあるわ！」<br>
+                「あの子は悔しかったのよ！ なんであの子が死んで、人殺したちがのうのうと生きてるの！？」</p>
+                <p>母親は叫びながら、私の胸ぐらを掴んだ。<br>
+                「責任取りなさいよ！！ あいつらに復讐してよ！！」</p>
+            `,
+            choices: [
+                { text: "「僕がやります。そのために来ました」", next: "pact_mom" },
+                { text: "「……僕には関係ありません」と言い逃れる", next: "evade_1", class: "btn-refuse" }
+            ]
+        },
+
+        // -----------------------------------------------------------
+        // バッドエンド分岐：責任転嫁の泥沼
+        // -----------------------------------------------------------
+        evade_1: {
+            icon: "😶",
+            text: `
+                <p>「……ちょっと待ってください。僕には関係ありません」</p>
+                <p>私は母親の手を振り払うようにして後ずさった。<br>
+                「たしかに僕は電話に出られなかった。でも、ただそれだけです。<br>
+                殺したのは部長たちでしょう？ なんで僕がリスクを負って復讐なんてしなきゃいけないんですか」</p>
+                <p>口から出るのは、自分でも驚くほど冷酷な保身の言葉だった。<br>
+                「僕は僕の人生を守りたいんです。巻き込まないでください」</p>
+                <p>母親の動きが止まる。<br>
+                怒号が止み、部屋に不気味な静寂が落ちた。</p>
+            `,
+            choices: [
+                { text: "立ち去ろうとする", next: "evade_2", class: "btn-refuse" }
+            ]
+        },
+
+        evade_2: {
+            icon: "👹",
+            text: `
+                <p>「……関係ない？」</p>
+                <p>母親が、低くしゃがれた声で呟く。<br>
+                「あの子がどれだけあんたを頼りにしていたか。<br>
+                毎日毎日、あんたの話をしていたか。それを……関係ない？」</p>
+                <p>「ひっ……」</p>
+                <p>母親が顔を上げた。<br>
+                その目は白目が血走り、人間の理性を完全に失っていた。<br>
+                彼女は仏壇の蝋燭立てを掴むと、獣のような咆哮を上げて私に飛びかかってきた。</p>
+                <p>「だったらあんたが死ねぇぇぇ！！！」</p>
+                <p>「うわあっ！？」<br>
+                私は突き飛ばされ、畳の上に転がる。<br>
+                母親が馬乗りになり、細い指で私の首を締め上げてくる。<br>
+                「あの子のところへ行け！ 謝ってこい！ 今すぐ！！」</p>
+            `,
+            choices: [
+                { text: "必死で抵抗して逃げる", next: "evade_3", class: "btn-refuse" }
+            ]
+        },
+
+        evade_3: {
+            icon: "🏃",
+            text: `
+                <p>「離せ！ この狂人め！！」</p>
+                <p>私は無我夢中で母親を殴りつけた。<br>
+                鈍い音がして、母親が横に倒れる。<br>
+                私は息を切らしながら立ち上がり、玄関へと走った。</p>
+                <p>後ろから、呪詛のような声が追いかけてくる。<br>
+                「逃がさない……絶対に逃がさない……呪ってやる……！」</p>
+                <p>靴も履かずに外へ飛び出す。<br>
+                夕暮れの住宅街。カラスが鳴いている。<br>
+                助かった。そう思った瞬間、ポケットの中でスマホが震えた。</p>
+                <p class="ghost-voice">
+                『最低。』
+                </p>
+            `,
+            choices: [
+                { text: "……え？", next: "bad_end_payment" }
+            ]
+        },
+
+        // --- BAD END: 契約不履行 ---
+        bad_end_payment: {
+            icon: "💀",
+            effect: { blood: false },
+            text: `
+                <p>スマホの画面を見る。<br>
+                Unknown Userからのメッセージ。</p>
+                <p class="ghost-voice">
+                『ママヲ殴ッタネ？<br>
+                私ノコトモ、ママノコトモ、見捨テルンダ。』
+                </p>
+                <p>「ち、違う、俺は……」</p>
+                <p class="ghost-voice">
+                『承認却下（Rejected）。<br>
+                全額、即時償還シテ下サイ。』
+                </p>
+                <p>キキーッ！！</p>
+                <p>突然、目の前の交差点にトラックが突っ込んできた。<br>
+                運転手はハンドルに突っ伏している。意識がない？<br>
+                いや、運転手の顔が――<span class="highlight">美咲の笑顔</span>に見えた。</p>
+                <p>「あ……」</p>
+                <p>衝撃。そして、肉が潰れる音。</p>
+                <div class="ending-card">
+                    <div class="end-title">BAD END: 債務不履行による強制執行</div>
+                    <p>責任から逃げ続けた男は、その命で負債を支払うことになった。</p>
+                </div>
+            `,
+            choices: [
+                { text: "タイトルに戻る", next: "back_to_title" }
+            ]
+        },
+
+        // --- 母親との契約（ルート復帰） ---
+        pact_mom: {
+            icon: "🤝",
+            text: `
+                <p>「やりましょう。お母さん」<br>
+                私は母親の手を取り、静かに告げた。<br>
+                「僕の手はもう汚れています。美咲と一緒に、地獄まで行きますから」</p>
+                <p>私の言葉を聞いた瞬間、母親の表情から険しさが消えた。<br>
+                代わりに浮かんだのは、歪で、深い共感の笑みだった。</p>
+                <p>「……いい子ね。あの子が選んだだけあるわ」</p>
+                <p>部屋の隅に、美咲の霊が立っているのが見えた。<br>
+                彼女は微笑んでいる。とても悲しく、とても残酷な笑顔で。<br>
+                これで契約は成立した。<br>
+                私は美咲のスマホを懐に入れ、戦場（オフィス）へと戻る。</p>
+                <p>ターゲットは二人。<br>
+                実行部隊の犬飼。そして、諸悪の根源である権田。</p>
+            `,
+            choices: [
+                { text: "月曜日、復讐の幕を開ける", next: "revenge_inukai_intro" }
+            ]
+        },
+
+        // --- 復讐：犬飼 ---
+        revenge_inukai_intro: {
+            icon: "🏢",
+            text: `
+                <span class="name">月曜日 経理部フロア</span>
+                <p>私は何食わぬ顔で出社した。<br>
+                懐には美咲のスマホという名の起爆スイッチを抱えている。</p>
+                <p>視線の先には、<span class="highlight">犬飼先輩</span>。<br>
+                美咲に仕事を丸投げし、彼女のSOSを握りつぶし、手柄を横取りしていた男。<br>
+                彼は今も<span class="highlight">業務用大型シュレッダー</span>の前で、誰かと電話で談笑している。</p>
+                <p>「あー、あの自殺した子？ ほんと迷惑だったよなー。メンタル弱すぎ（笑）」</p>
+                <p>私の中で、理性の糸が焼き切れる音がした。<br>
+                同時に、PCからTeamsの通知音が鳴り響く。<br>
+                美咲からの承認依頼だ。</p>
+                <p class="ghost-voice">
+                『ねえ、処理シテ良イ？』
+                </p>
+            `,
+            choices: [
+                { text: "「やれ」と念じる", next: "revenge_inukai_exec" }
+            ]
+        },
+
+        revenge_inukai_exec: {
+            icon: "🩸",
+            effect: { blood: true, karma: +30 },
+            text: `
+                <p>「やっちまえ、美咲」</p>
+                <p>巨大なシュレッダーが、飢えた獣のように唸りを上げる。<br>
+                犬飼のネクタイが、まるで意思を持った蛇のようにふわりと浮き上がり、鋭利な刃が回転する投入口へと吸い込まれた。</p>
+                <p>「え？ うわ、ちょっ、と！？」</p>
+                <p><span class="glitch">ガガガガガッ！！</span></p>
+                <p>硬質な機械音と、肉が潰れる湿った音が混ざり合う。<br>
+                強力なモーターに引かれ、先輩の顔面が強制的に刃の隙間へと引きずり込まれていく。<br>
+                「あがっ、ご、げッ……！」<br>
+                充血した目が、助けを求めて私を見る。</p>
+                <p>私は動かない。ただ冷ややかに見下ろした。<br>
+                「……犬飼先輩。それ、<span class="highlight">損金不算入</span>ですね」</p>
+                <p>数秒後、オフィスは絶叫と鮮血に包まれた。<br>
+                だが、まだ終わらない。ラスボスが残っている。</p>
+            `,
+            choices: [
+                { text: "次のターゲットへ", next: "revenge_gonda_intro" }
+            ]
+        },
+
+        // --- 復讐：権田 ---
+        revenge_gonda_intro: {
+            icon: "📉",
+            text: `
+                <p>犬飼の死は「不慮の事故」として処理された。<br>
+                社内はパニックだが、権田部長は保身に走っている。</p>
+                <p>決算報告会議。<br>
+                役員たちがWeb会議で集まる中、権田が震える声でプレゼンを始める。<br>
+                「えー、当期の業績ですが……部下の管理不足もありまして……」</p>
+                <p>プロジェクターが明滅する。<br>
+                美咲が介入している。<br>
+                私のPCに、ポップアップが表示される。</p>
+                <p style="border:1px solid #f00; color:#f00; padding:15px; text-align:center;">
+                【稟議書】<br>
+                案件：権田部長の固定資産除却<br>
+                理由：耐用年数超過および修復不能な欠陥<br>
+                承認しますか？
+                </p>
+            `,
+            choices: [
+                { text: "【承認 (Approve)】ボタンを叩きつける", next: "revenge_gonda_exec" }
+            ]
+        },
+
+        revenge_gonda_exec: {
+            icon: "💀",
+            effect: { karma: +50 },
+            text: `
+                <p>私がEnterキーを叩いた瞬間。</p>
+                <p>会議室のスピーカーから、あの日美咲が録音した罵声が大音量で流れた。<br>
+                『お前の代わりなんていくらでもいるんだよ！ 死んで詫びろ！』<br>
+                『飛び降りるなら会社以外でやれ！ 迷惑だ！』</p>
+                <p>役員たちがざわめく。<br>
+                「な、なんだこれは！？ 消せ！ 誰だ！」<br>
+                権田が錯乱して暴れまわる。顔色は土気色だ。</p>
+                <p>ドンッ！<br>
+                権田が胸を押さえて倒れた。<br>
+                心不全。<br>
+                あまりにもあっけない、しかし社会的な死をも伴う完全な幕切れ。</p>
+                <p>騒然とするオフィスの中で、私は不思議な安堵感に包まれていた。<br>
+                これで終わった。美咲の無念は晴らせた。<br>
+                僕も、これからは静かに暮らせるはずだ。</p>
+                <p>……そう思っていた。<br>
+                あの「告白」があるまでは。</p>
+            `,
+            choices: [
+                { text: "物語はクライマックスへ（climax.htmlへ移動）", next: "to_climax" }
+            ]
+        }
+    };
+
+    // ▼▼▼ エンジン部 ▼▼▼
+    const dom = {
+        text: document.getElementById("narrative-area"),
+        choices: document.getElementById("choices-container"),
+        icon: document.getElementById("scene-icon"),
+        blood: document.getElementById("blood-fx")
+    };
+
+    // セーブデータ管理
+    const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "revenge", sanity: 100, karma: 0 };
+
+    function render(sceneId) {
+        // ★スクロール修正：一番上へ★
+        window.scrollTo(0, 0);
+
+        // --- 特殊処理：タイトル戻り ---
+        if(sceneId === "back_to_title") {
+            window.location.href = "index.html";
+            return;
+        }
+
+        // --- 特殊処理：クライマックスへ遷移 ---
+        if(sceneId === "to_climax") {
+            // データを更新して遷移
+            savedData.karma += 50; // 業を最大化
+            savedData.items = ["裏帳簿", "美咲のスマホ"];
+            localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
+            window.location.href = "climax.html";
+            return;
+        }
+
+        const scene = scenes[sceneId];
+        
+        // 演出更新
+        if(scene.effect) {
+            if(scene.effect.blood) dom.blood.classList.add("active");
+            if(scene.effect.karma) savedData.karma += scene.effect.karma;
+        } else {
+            dom.blood.classList.remove("active");
+        }
+
+        // 画面描画
+        dom.icon.innerText = scene.icon || "💢";
+        dom.text.innerHTML = scene.text;
+        
+        // テキストフェードイン
+        dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
+
+        // 選択肢生成
+        dom.choices.innerHTML = "";
+        scene.choices.forEach(c => {
+            const btn = document.createElement("button");
+            btn.innerText = c.text;
+            if(c.class) btn.className = c.class;
+            btn.onclick = () => render(c.next);
+            dom.choices.appendChild(btn);
+        });
+    }
+
+    // 開始
+    render("start");
+
+</script>
+</body>
+</html>

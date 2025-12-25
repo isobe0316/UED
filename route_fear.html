@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>埋まらない予実差の闇 - Chapter 1: Fear</title>
+<style>
+    /* ▼▼▼ 恐怖の紫と精神崩壊 ▼▼▼ */
+    :root {
+        --bg-color: #050005;
+        --text-main: #d0c0d0;
+        --accent-purple: #9013fe;
+        --accent-fear: #cc00ff;
+        --accent-blood: #880000;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+        line-height: 2.5;
+        letter-spacing: 0.05em;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+
+    #game-wrapper {
+        width: 100%;
+        max-width: 840px;
+        background-color: #100010;
+        box-shadow: 0 0 80px rgba(100, 0, 100, 0.2);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid #330033;
+        border-right: 1px solid #330033;
+    }
+
+    /* ビジュアルヘッダー */
+    #scene-header {
+        height: 260px;
+        background: radial-gradient(circle at center, #220022 0%, #000 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 5rem; position: relative; overflow: hidden;
+        border-bottom: 1px solid #440044;
+    }
+
+    /* 恐怖演出（ノイズと歪み） */
+    .noise-overlay {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.1'/%3E%3C/svg%3E");
+        opacity: 0.3; pointer-events: none;
+    }
+    
+    /* 本文エリア */
+    #narrative-area {
+        padding: 60px 50px;
+        flex-grow: 1;
+        font-size: 1.1rem;
+        text-align: justify;
+    }
+    p { margin-bottom: 2.5em; opacity: 0; animation: fadeIn 1s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .highlight { color: var(--accent-purple); font-weight: bold; }
+    .scream { color: var(--accent-fear); font-weight: bold; font-size: 1.1em; letter-spacing: 0.2em; }
+    
+    /* 亡霊の声（歪んで聞こえる） */
+    .ghost-voice { 
+        color: var(--accent-fear); font-family: "Courier New", monospace;
+        text-shadow: 2px 2px 0px #000, -1px -1px 0 #500;
+        border-left: 3px solid var(--accent-purple); padding-left: 20px; margin: 2em 0;
+        letter-spacing: 0.15em;
+    }
+
+    /* エンディングカード */
+    .ending-card {
+        margin-top: 50px; padding: 40px; border: 1px solid #666; text-align: center;
+        color: #888; opacity: 0; animation: fadeIn 3s forwards; animation-delay: 1s;
+    }
+    .end-title { font-size: 2rem; margin-bottom: 20px; letter-spacing: 0.2em; font-weight: bold; color: #666; }
+
+    /* 選択肢エリア */
+    #choices-container {
+        padding: 40px 60px 80px;
+        display: flex; flex-direction: column; gap: 20px;
+        background: linear-gradient(to top, #000 0%, #100010 100%);
+        border-top: 1px solid #330033;
+    }
+    button {
+        background: #1a051a; color: #d0a0d0; border: 1px solid #440044;
+        padding: 25px 30px; text-align: left; 
+        font-family: "Yu Mincho", serif; font-size: 1.05rem;
+        cursor: pointer; transition: all 0.3s; position: relative;
+    }
+    button:hover { background: #330033; color: #fff; border-color: #f0f; padding-left: 40px; box-shadow: 0 0 20px rgba(200, 0, 255, 0.3); }
+    button::before { content: "👁️"; position: absolute; left: 15px; opacity: 0; transition: opacity 0.3s; font-size: 0.8em; }
+    button:hover::before { opacity: 1; }
+    
+    /* 拒絶ボタン */
+    .btn-refuse { border-color: #888; color: #aaa; }
+    .btn-refuse:hover { background: #222; border-color: #fff; box-shadow: none; }
+
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="scene-header">
+        <span id="scene-icon">😱</span>
+        <div class="noise-overlay"></div>
+    </div>
+
+    <div id="narrative-area"></div>
+    <div id="choices-container"></div>
+</div>
+
+<script>
+    // ▼▼▼ シナリオデータ（恐怖編・完全版） ▼▼▼
+    const scenes = {
+        // --- 導入：拒絶と逃走 ---
+        start: {
+            icon: "🏃",
+            text: `
+                <span class="name">深夜2:20 財務経理部フロア</span>
+                <p>
+                「い、嫌だ……見たくない……！」
+                </p>
+                <p>
+                私は悲鳴に近い声を上げ、反射的にノートPCを閉じた。<br>
+                バチン！ という乾いた音がフロアに響く。<br>
+                心臓が早鐘を打っている。脂汗が額を伝う。<br>
+                死んだ人間からのメッセージ？ ありえない。そんなものは見なかったことにすればいい。<br>
+                関わらなければ、存在しないのと同じだ。
+                </p>
+                <p>
+                「帰ろう。疲れてるんだ。そうだ、全部夢だ」
+                </p>
+                <p>
+                私は震える手で鞄を掴み、逃げるように席を立った。<br>
+                しかし、異変はすぐに起きた。<br>
+                閉じたはずのPCから、冷却ファンの回転音が聞こえる。<br>
+                <span class="highlight">ブォォォォン……。</span><br>
+                その音は、まるで苦悶する人間の呻き声のように、低く、重苦しく唸っている。
+                </p>
+                <p>
+                そして、スピーカーからノイズ混じりの合成音声が漏れ出した。<br>
+                <span class="ghost-voice">『閉ジナイデ。マダ話シテル途中デショ？』</span>
+                </p>
+                <p>
+                「ひっ！？」<br>
+                私は椅子を蹴倒し、出口へと走った。<br>
+                振り返ってはいけない。振り返ったら、そこに「いる」気がするからだ。
+                </p>
+            `,
+            choices: [
+                { text: "エレベーターで逃げる", next: "elevator_trap" },
+                { text: "非常階段で逃げる", next: "stairs_loop" }
+            ]
+        },
+
+        // --- 分岐A：エレベーター（閉鎖空間） ---
+        elevator_trap: {
+            icon: "🛗",
+            text: `
+                <p>
+                私はエレベーターホールへ駆け込み、連打してボタンを押した。<br>
+                早く、早く来い！<br>
+                到着音と共に扉が開く。中は無人だ。<br>
+                私は飛び込み、「閉」ボタンを押し続けた。
+                </p>
+                <p>
+                扉が閉まる。密室の安堵感。<br>
+                しかし、動き出した箱の中で、照明がチカチカと点滅を始めた。
+                </p>
+                <p>
+                ふと、鏡を見る。<br>
+                自分の背後に、<span class="highlight">青白い顔をした美咲</span>が立っていた。<br>
+                首が直角に折れ曲がっている。
+                </p>
+                <p>
+                <span class="scream">「うわあああああ！！」</span>
+                </p>
+                <p>
+                逃げ場のない密室で、彼女の冷たい手が私の首に巻きついた。
+                </p>
+            `,
+            choices: [
+                { text: "意識が暗転する", next: "forced_pact" }
+            ]
+        },
+
+        // --- 分岐B：非常階段（無限ループ） ---
+        stairs_loop: {
+            icon: "🪜",
+            text: `
+                <p>
+                エレベーターは危険だ。私は非常階段の重い鉄扉を押し開けた。<br>
+                カツン、カツン、カツン。<br>
+                自分の足音がコンクリートの壁に反響し、まるで誰かが追いかけてくる音のように聞こえる。
+                </p>
+                <p>
+                「はぁ、はぁ、はぁ……！」<br>
+                ここは4階だ。1階まで降りれば外に出られる。<br>
+                踊り場を回り、下の階へ。<br>
+                壁の階数表示を見る。『3F』。よし。さらに降りる。『2F』。あと少し。
+                </p>
+                <p>
+                さらに降りる。<br>
+                『2F』
+                </p>
+                <p>
+                「……え？」<br>
+                見間違いか？ 私はさらに階段を降りた。<br>
+                そこにある表示は、またしても<span class="highlight">『2F』</span>だった。
+                </p>
+                <p>
+                「なんでだよ！？」<br>
+                パニックになりながら降り続ける。『2F』『2F』『2F』……。<br>
+                頭上から、ズルズル……という何かを引きずる音が迫ってくる。<br>
+                私の足がもつれ、無様に転がり落ちた先には、美咲が立っていた。
+                </p>
+            `,
+            choices: [
+                { text: "意識が暗転する", next: "forced_pact" }
+            ]
+        },
+
+        // --- 強制契約 ---
+        forced_pact: {
+            icon: "⛓️",
+            text: `
+                <p>
+                「ひ、ひぃぃぃ！！ ごめんなさい！ 許して！！」<br>
+                私は床に這いつくばって命乞いをした。<br>
+                美咲の霊が、折れ曲がった腕を伸ばし、私の顔を鷲掴みにする。<br>
+                万力のような力だ。顎の骨が軋む。
+                </p>
+                <p class="ghost-voice">
+                『許サナイ。絶対ニ。』<br>
+                『デモ、チャンスヲアゲル。』<br>
+                『私ノ代ワリニ、アイツラヲ殺シテ。』
+                </p>
+                <p>
+                「こ、殺す……？」<br>
+                「そう。犬飼と権田。あいつらを地獄に送れば、あんたは見逃してあげる」
+                </p>
+                <p>
+                選択肢などなかった。<br>
+                この場で呪い殺されるか、それとも殺人鬼の手先となるか。<br>
+                私の生存本能が叫ぶ。<br>
+                しかし、理性がそれを拒絶する。人殺しなんてできるわけがない。
+                </p>
+            `,
+            choices: [
+                { text: "「やります！ やりますから助けて！！」", next: "monday_murder_1" },
+                { text: "「無理です……殺せない！」と拒絶する", next: "refuse_pact", class: "btn-refuse" }
+            ]
+        },
+
+        // ============================================================
+        // BAD END ROUTE: 拒絶（虐殺への序章）
+        // ============================================================
+        refuse_pact: {
+            icon: "🚫",
+            text: `
+                <p>
+                「む、無理だ……そんなことできない！」<br>
+                「人殺しなんて……僕は……うわあああ！」
+                </p>
+                <p>
+                私は恐怖のあまり錯乱し、美咲の手を振り払おうと暴れた。<br>
+                彼女の提案は狂っている。<br>
+                ここで殺される方がマシだ……いや、死にたくない！<br>
+                矛盾した思考が脳内を駆け巡り、私はただの子供のように泣き叫んだ。
+                </p>
+                <p class="ghost-voice">
+                『……ソウ。』<br>
+                『役ニ立タナイナラ、イラナイ。』
+                </p>
+                <p>
+                美咲の声から、一切の感情が消えた。<br>
+                顔を掴んでいた手の力が、限界を超えて強まる。<br>
+                ミシミシと頭蓋骨が軋む音が、脳内に直接響いた。
+                </p>
+            `,
+            choices: [
+                { text: "「痛い、やめてくれ！」", next: "torture_phase_1" }
+            ]
+        },
+
+        // --- 追加シーン1: 侵食 ---
+        torture_phase_1: {
+            icon: "🧟",
+            text: `
+                <p>
+                「あがっ……！ いだ、痛いッ！！」
+                </p>
+                <p>
+                首を締め上げる指が、皮膚を突き破って肉に食い込んでくる。<br>
+                激痛。<br>
+                まるで熱した鉄ごてを押し当てられたような、焼ける痛みだ。
+                </p>
+                <p>
+                「助け……て……」
+                </p>
+                <p>
+                声が出ない。<br>
+                視界の端から、黒い「シミ」のようなものが広がり、非常階段の無機質なコンクリートを侵食していく。<br>
+                そのシミの中から、無数の白い手が伸びてきた。
+                </p>
+                <p class="ghost-voice">
+                『オイデ。コッチハ寒イヨ。』<br>
+                『早ク、早ク……』
+                </p>
+                <p>
+                亡者たちの手足が、私の足首を、手首を掴む。<br>
+                ずるずると引きずり込まれる。<br>
+                あの世への入り口へ。
+                </p>
+            `,
+            choices: [
+                { text: "必死に抵抗する", next: "torture_phase_2" }
+            ]
+        },
+
+        // --- 追加シーン2: 絶望の宣告と、土壇場の選択 ---
+        torture_phase_2: {
+            icon: "👁️",
+            text: `
+                <p>
+                「いやだ！ 死にたくない！ まだ死にたくない！！」
+                </p>
+                <p>
+                私は涙と鼻水を垂れ流し、見苦しく抵抗した。<br>
+                爪が剥がれるほど床を掻きむしり、生にしがみつく。<br>
+                しかし、美咲の冷ややかな瞳は、汚物を見るような目つきで私を見下ろしている。
+                </p>
+                <p class="ghost-voice">
+                『チャンスハ上ゲタ。デモ、アンタハ逃ゲタ。』<br>
+                『責任ヲ取ラナイ人間ニ、生キル資格ナンテナイ。』
+                </p>
+                <p>
+                彼女の顔が、ありえない角度で傾いた。<br>
+                <span class="highlight">メリメリ……。</span><br>
+                彼女自身の首が折れる音。
+                </p>
+                <p>
+                そして、彼女は私の顔の目の前まで顔を近づけ、腐臭のする口を開いた。
+                </p>
+                <p class="ghost-voice">
+                『同ジ苦シミヲ、味ワッテ？』
+                </p>
+            `,
+            choices: [
+                { text: "……あ……", next: "bad_end_fear" },
+                { text: "「やります！ 殺しますから助けて！！」", next: "monday_murder_1" }
+            ]
+        },
+
+        bad_end_fear: {
+            icon: "💀",
+            text: `
+                <p>
+                <span class="scream">ボキッ。</span>
+                </p>
+                <p>
+                乾いた音が体の中で響いた。<br>
+                視界がぐるりと回転し、自分の背中が見えた。<br>
+                あぁ、首が回ったのか。
+                </p>
+                <p class="ghost-voice">
+                『契約不履行（Default）。<br>
+                即時執行シマス。』
+                </p>
+                <p>
+                痛みを感じる暇もなかった。<br>
+                私の意識は、無限に続く階段の闇へと吸い込まれて消えた。
+                </p>
+                <div class="ending-card">
+                    <div class="end-title">BAD END: 契約不履行 (Execution)</div>
+                    <p>恐怖に屈した男は、その恐怖そのものに取り殺された。</p>
+                </div>
+            `,
+            choices: [
+                { text: "タイトルに戻る", next: "back_to_title" }
+            ]
+        },
+
+        // ============================================================
+        // SURVIVAL ROUTE: 殺人実行
+        // ============================================================
+        // --- 殺人1：犬飼（シュレッダー） ---
+        monday_murder_1: {
+            icon: "🩸",
+            text: `
+                <span class="name">月曜日 シュレッダー室</span>
+                <p>
+                翌日。私は生きた心地がしないまま出社した。<br>
+                昨夜の恐怖が、首に残る冷たい感触が、私を支配していた。<br>
+                背後には常に美咲の気配がある。<br>
+                早くあいつらを殺さないと、今度こそ私が殺される。
+                </p>
+                <p>
+                私は<span class="highlight">犬飼先輩</span>をシュレッダー室に呼び出した。<br>
+                「先輩、美咲の件でヤバいデータが見つかりました。<br>
+                ここで処分しましょう。手伝いますから」
+                </p>
+                <p>
+                「ま、マジか！ 頼むよ！」<br>
+                犬飼は安堵の表情で、大型シュレッダーの前に立った。<br>
+                「これか？ これを入れればいいのか？」<br>
+                彼は身を乗り出して投入口を覗き込む。
+                </p>
+                <p>
+                「ええ。……さようなら」
+                </p>
+                <p>
+                私は彼の背中を、全体重をかけて突き飛ばした。
+                </p>
+                <p>
+                <span class="scream">「ぎゃあああああ！！」</span>
+                </p>
+                <p>
+                ネクタイごと首が巻き込まれる。<br>
+                私は飛び散る血を浴びながら、震えが止まらなかった。<br>
+                罪悪感じゃない。「これで半分助かった」という安堵で。
+                </p>
+            `,
+            choices: [
+                { text: "次のターゲットへ向かう", next: "monday_murder_2" }
+            ]
+        },
+
+        // --- 殺人2：権田（薬の没収） ---
+        monday_murder_2: {
+            icon: "💊",
+            text: `
+                <span class="name">月曜日 夜 会議室</span>
+                <p>
+                次は<span class="highlight">権田部長</span>だ。<br>
+                彼は重い心臓病を患っており、常にニトロ（薬）を持ち歩いている。<br>
+                私は彼を無人の会議室に呼び出した。
+                </p>
+                <p>
+                「なんだ、話というのは」<br>
+                「部長。美咲さんが、そこにいますよ」
+                </p>
+                <p>
+                私が指差した先。プロジェクターが勝手に起動し、ノイズ混じりの美咲の遺影が大写しになった。<br>
+                スピーカーから絶叫が轟く。<br>
+                <span class="ghost-voice">『殺シテヤル！ 殺シテヤル！』</span>
+                </p>
+                <p>
+                「う、うわぁぁぁ！？」<br>
+                権田は恐怖で顔を引きつらせ、胸を押さえてうずくまった。<br>
+                「く、薬……薬……！」<br>
+                彼は震える手で、ポケットからピルケースを取り出した。
+                </p>
+                <p>
+                私は静かに歩み寄り、彼の手からピルケースをもぎ取った。
+                </p>
+                <p>
+                「あ……返せ……頼む……」<br>
+                「ダメです。これは没収です」
+                </p>
+                <p>
+                私は彼の目の前で、ケースの中身をゴミ箱にぶちまけた。<br>
+                「あ……が……ッ」<br>
+                権田は絶望の表情で手を伸ばし、そして動かなくなった。
+                </p>
+            `,
+            choices: [
+                { text: "奴隷の生活が始まる（climax.htmlへ）", next: "to_climax" }
+            ]
+        }
+    };
+
+    // ▼▼▼ エンジン部 ▼▼▼
+    const dom = {
+        text: document.getElementById("narrative-area"),
+        choices: document.getElementById("choices-container"),
+        icon: document.getElementById("scene-icon")
+    };
+
+    // セーブデータ管理
+    const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "fear", sanity: 100, karma: 0 };
+
+    function render(sceneId) {
+        // ★スクロール修正：必ず一番上へ★
+        window.scrollTo(0, 0);
+
+        if(sceneId === "back_to_title") {
+            window.location.href = "index.html";
+            return;
+        }
+
+        // --- 特殊処理：クライマックスへ遷移 ---
+        if(sceneId === "to_climax") {
+            // Fearルートは「殺人」を犯しているため KarmaMAX。
+            savedData.route = "fear";
+            savedData.items = ["美咲のスマホ(凶器)"];
+            savedData.karma = 100;
+            localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
+            
+            window.location.href = "climax.html";
+            return;
+        }
+
+        const scene = scenes[sceneId];
+        
+        // 画面描画
+        dom.icon.innerText = scene.icon || "😱";
+        dom.text.innerHTML = scene.text;
+        
+        // テキストフェードイン
+        dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
+
+        // 選択肢生成
+        dom.choices.innerHTML = "";
+        scene.choices.forEach(c => {
+            const btn = document.createElement("button");
+            btn.innerText = c.text;
+            if(c.class) btn.className = c.class;
+            btn.onclick = () => render(c.next);
+            dom.choices.appendChild(btn);
+        });
+    }
+
+    // 開始
+    render("start");
+
+</script>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>埋まらない予実差の闇 - Chapter 0: Variance</title>
+<style>
+    :root {
+        --bg-color: #050505;
+        --text-main: #d0d0d0;
+        --accent-blue: #6264a7;
+        --accent-red: #8a0000;
+        --accent-ghost: #00ffff;
+    }
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+        line-height: 2.4;
+        letter-spacing: 0.05em;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+    #game-wrapper {
+        width: 100%;
+        max-width: 840px;
+        background-color: #080808;
+        box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid #1a1a1a;
+        border-right: 1px solid #1a1a1a;
+    }
+    #scene-header {
+        height: 260px;
+        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 5rem; position: relative; overflow: hidden;
+        border-bottom: 1px solid #222;
+    }
+    #teams-notification {
+        position: absolute; bottom: 20px; right: 20px; width: 340px;
+        background: #202020; color: #fff;
+        border-left: 4px solid var(--accent-blue);
+        padding: 20px; font-family: "Segoe UI", sans-serif; font-size: 0.95rem;
+        box-shadow: 0 10px 40px #000;
+        opacity: 0; transform: translateY(30px);
+        transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        z-index: 10; pointer-events: none;
+    }
+    #teams-notification.active { opacity: 1; transform: translateY(0); }
+    .notif-header { font-weight: bold; font-size: 0.8rem; color: #a6a8e0; display: flex; justify-content: space-between; margin-bottom: 5px; }
+    
+    #narrative-area {
+        padding: 60px 50px;
+        flex-grow: 1;
+        font-size: 1.15rem;
+        text-align: justify;
+    }
+    p { margin-bottom: 2.5em; opacity: 0; animation: fadeIn 1s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    
+    .highlight { color: var(--accent-red); font-weight: bold; }
+    .ghost-voice { 
+        color: var(--accent-ghost); font-family: monospace; 
+        text-shadow: 0 0 8px rgba(0,255,255,0.2); 
+        border-left: 2px solid var(--accent-ghost); padding-left: 15px; margin: 2em 0;
+    }
+    .glitch-text { animation: glitch 0.3s infinite; display: inline-block; }
+    @keyframes glitch { 0% {transform: translate(0)} 20% {transform: translate(-1px, 1px)} 40% {transform: translate(1px, -1px)} 100% {transform: translate(0)} }
+    
+    #choices-container {
+        padding: 40px 60px 80px;
+        display: flex; flex-direction: column; gap: 20px;
+        background: linear-gradient(to top, #000 0%, #080808 100%);
+        border-top: 1px solid #1a1a1a;
+    }
+    button {
+        background: #111; color: #999; border: 1px solid #333;
+        padding: 25px 30px; text-align: left; 
+        font-family: "Yu Mincho", serif; font-size: 1.05rem;
+        cursor: pointer; transition: all 0.3s; position: relative;
+    }
+    button:hover { background: #1a1a1a; color: #fff; border-color: #666; padding-left: 40px; }
+    .btn-route { border-left-width: 4px; font-weight: bold; }
+    .route-logic { border-color: #4a90e2; }
+    .route-emotion { border-color: #f5a623; }
+    .route-fear { border-color: #9013fe; }
+    .route-revenge { border-color: #d0021b; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="scene-header">
+        <span id="scene-icon">🌙</span>
+        <div id="teams-notification">
+            <div class="notif-header">
+                <span>Unknown User</span>
+                <span>Now</span>
+            </div>
+            <div id="notif-content">...</div>
+        </div>
+    </div>
+    <div id="narrative-area"></div>
+    <div id="choices-container"></div>
+</div>
+
+<script>
+    // ▼▼▼ シナリオデータ（最終完全版・分岐追加） ▼▼▼
+    const scenes = {
+        // --- 導入 ---
+        start: {
+            icon: "🏢",
+            text: `
+                <p>202X年 4月15日 深夜2:15。財務経理部フロア。</p>
+                <p>オフィスの空調が、獣の寝息のような低い唸り声を上げている。<br>
+                深夜2時を過ぎたフロアは、深海のような静寂と、冷え切った空気に包まれていた。<br>
+                キーボードを叩く自分の指先の音だけが、乾いたリズムで響いている。カチャ、カチャ、カチャ。</p>
+                <p>「……合わない」</p>
+                <p>独り言が、吸音材の貼られた天井に吸い込まれて消える。<br>
+                期末決算の最終確定日。私は一人、膨大な数字の羅列と格闘していた。<br>
+                1円のズレも許されない。それが財務会計の仕事だ。<br>
+                過去の実績を積み上げ、確定させること。死んだ時間をホルマリン漬けの標本にするような、冷徹な作業だ。</p>
+                <p>ふと、入力を止めて顔を上げる。<br>
+                パーティションの向こう側にある「島」は、闇に沈んでいる。<br>
+                その一角に、主を失ったデスクがあった。<br>
+                3ヶ月前に自ら命を絶った、FP&A（経営管理）担当――<span class="highlight">美咲</span>の席だ。</p>
+                <p>彼女は「未来（予算）」を作る仕事をしていた。<br>
+                過去を見る私と、未来を見る彼女。<br>
+                私たちは、うまくいっているはずだった。……あの日までは。</p>
+            `,
+            choices: [
+                { text: "美咲のデスクに近づいてみる", next: "investigate_desk" },
+                { text: "余計なことは考えず、仕事に戻る", next: "force_work" }
+            ]
+        },
+
+        // --- 分岐1-A：デスク調査（未練） ---
+        investigate_desk: {
+            icon: "🥀",
+            text: `
+                <p>私は椅子を軋ませて立ち上がり、薄暗い通路を歩いて彼女のデスクへと近づいた。<br>
+                そこだけ空気が澱み、時間が止まっているように感じる。</p>
+                <p>モニターにはうっすらと埃が積もっている。<br>
+                卓上カレンダーは3月で止まったままだ。<br>
+                端に置かれた観葉植物は完全に枯れ果て、茶色い骸を晒していた。</p>
+                <p>キーボードの下に、黄色い付箋が挟まっているのが見えた。<br>
+                震える手でそれを引き抜く。</p>
+                <p style="font-family:serif; font-style:italic; border:1px solid #333; padding:15px; margin:20px 0;">
+                『私は、消費されるだけの備品じゃない』
+                </p>
+                <p>殴り書きのような筆跡。<br>
+                彼女をここまで追い詰めたのは誰だ？<br>
+                そして、それに気づけなかった私にも、その罪の一端はあるのではないか。</p>
+                <p>胸が締め付けられるような罪悪感に襲われた、その時だった。</p>
+            `,
+            choices: [
+                { text: "……席に戻ろう", next: "incident_trigger" }
+            ]
+        },
+
+        // --- 分岐1-B：仕事強行（狂気） ---
+        force_work: {
+            icon: "📉",
+            text: `
+                <p>感傷に浸っている時間はない。<br>
+                私が数字を合わせなければ、明日の役員会で経理部長が恥をかく。<br>
+                そうすれば、またあの怒鳴り声がフロアに響くことになる。</p>
+                <p>私は視線を美咲の席から剥がし、再びモニターに向き直った。<br>
+                Excelのセルが、無限に続く牢獄の格子のように見えてくる。</p>
+                <p>エンターキーを叩く。カチャ、カチャ。<br>
+                ……音が、やけに響く。</p>
+                <p>ふと、セルの数値がおかしいことに気づく。<br>
+                『444』『444』『444』<br>
+                バックスペースキーを押しても消えない。<br>
+                よく見ると、数字ではない。<br>
+                <span class="glitch-text">『DIE』『HELP』『URAGIRIMONO』</span></p>
+                <p>「疲れているんだ……」<br>
+                目頭を押さえた、その時だった。</p>
+            `,
+            choices: [
+                { text: "な、なんだ……？", next: "incident_trigger" }
+            ]
+        },
+
+        // --- 合流：通知イベント ---
+        incident_trigger: {
+            icon: "🔔",
+            action: { popup: "件名: 予実差異（Variance）の報告<br><br>ねえ、実績が合わないよ。<br>私が生きたかった未来と、死んだ現実の差が埋まらないの。" },
+            text: `
+                <p><strong style="color:#6264a7; font-size:1.3rem;">ピン！♪</strong></p>
+                <p>静寂を切り裂く、軽快で電子的な通知音。<br>
+                心臓が跳ね上がる。<br>
+                Microsoft Teamsの着信音だ。<br>
+                こんな時間に？ 誰が？</p>
+                <p>恐る恐る画面の右下を見る。<br>
+                紫色のポップアップが、ゆっくりと浮かび上がってきた。</p>
+                <p>差出人：<span class="highlight">Unknown User</span></p>
+                <p>息が止まるかと思った。<br>
+                『予実差異』……それは、FP&A担当だった美咲の口癖だ。<br>
+                削除されたはずの彼女のアカウントが、亡霊のようにネットワークを彷徨っているのか？</p>
+            `,
+            // ★追加分岐★
+            choices: [
+                { text: "通知をクリックして開く", next: "message_reveal" },
+                { text: "「スパムだ」と判断し、削除を試みる", next: "attempt_ignore" }
+            ]
+        },
+
+        // --- 追加分岐ルート：拒絶の代償 ---
+        attempt_ignore: {
+            icon: "🚫",
+            text: `
+                <p>「……馬鹿な。誰かの悪質な悪戯だ」</p>
+                <p>私は自分に言い聞かせるように呟き、マウスカーソルを通知の「×」ボタンへ動かした。<br>
+                関わってはいけない。これは見てはいけないものだ。</p>
+                <p>しかし、カーソルが「×」に重なった瞬間、まるで磁石の同極同士のように、カーソルが弾かれた。<br>
+                「なっ……！？」</p>
+                <p>何度やっても、閉じるボタンが押せない。<br>
+                それどころか、画面上の文字が赤く変色し始めた。</p>
+                <p class="ghost-voice">『無視スルノ？<br>マタ、私ヲ無視スルノ？』</p>
+                <p>PCのファンが悲鳴のような回転音を上げ、画面が激しく明滅する。<br>
+                次の瞬間、私の意思とは無関係に、メッセージウィンドウが強制的に展開された。</p>
+            `,
+            choices: [
+                { text: "……！！", next: "message_reveal" }
+            ]
+        },
+
+        // --- メッセージ開示 ---
+        message_reveal: {
+            icon: "💻",
+            text: `
+                <p>私は震える指でマウスを操作し、メッセージを開いた。（あるいは、勝手に開かれた。）</p>
+                <p class="ghost-voice">
+                『ねえ、亜久斗くん。<br>
+                なんであの日、電話に出てくれなかったの？<br>
+                私のこと、見捨てたの？』
+                </p>
+                <p>画面の文字が滲み、赤黒く変色していく。<br>
+                これはバグではない。ハッキングでもない。<br>
+                そこに「彼女」がいるのだ。</p>
+                <p>「美咲……なのか？」</p>
+                <p>声に出して問いかける。<br>
+                PCの冷却ファンが唸りを上げ、まるで苦痛の叫びのように聞こえた。</p>
+                <p class="ghost-voice">
+                『明日、実家に来て。<br>
+                ママが待ってる。<br>
+                そこで私の「未処理残高」を精算して。』
+                </p>
+                <p>それは呪いの招待状か、それとも救済の願いか。<br>
+                逃げることは許されない。<br>
+                この不可解な現象に対し、私の心は激しく揺れ動いた。</p>
+            `,
+            choices: [
+                { text: "自分の「心」を決める", next: "final_choice" }
+            ]
+        },
+
+        // --- 最終分岐 ---
+        final_choice: {
+            icon: "⚖️",
+            text: `
+                <p>オフィスの照明が明滅を始める。<br>
+                彼女の気配が、モニターから溢れ出し、私の首筋を撫でている。<br>
+                どうする？<br>
+                この恐怖と、罪悪感と、後悔に、どう向き合う？</p>
+                <p>ここでの選択が、私の運命――そして物語の結末（ルート）を決定づける。</p>
+            `,
+            choices: [
+                { text: "【論理】誰かの悪戯だ。ログを解析して正体を暴く", next: "route_logic", class: "btn-route route-logic" },
+                { text: "【愛執】美咲……！ 涙を流しながら謝罪する", next: "route_emotion", class: "btn-route route-emotion" },
+                { text: "【恐怖】見なかったことにして、震えながらPCを閉じる", next: "route_fear", class: "btn-route route-fear" },
+                { text: "【殺意】「ふざけるな！」と怒鳴り、復讐の道を選ぶ", next: "route_revenge", class: "btn-route route-revenge" }
+            ]
+        }
+    };
+
+    const dom = {
+        text: document.getElementById("narrative-area"),
+        choices: document.getElementById("choices-container"),
+        icon: document.getElementById("scene-icon"),
+        notif: document.getElementById("teams-notification"),
+        notifContent: document.getElementById("notif-content")
+    };
+
+    function render(sceneId) {
+        // ★修正点：必ず一番上へスクロール★
+        window.scrollTo(0,0);
+
+        // --- ファイル遷移ロジック（全ルート解放済み） ---
+        if(sceneId.startsWith("route_")) {
+            const routeName = sceneId.split("_")[1];
+            
+            // ルートごとの初期パラメータ設定
+            let karma = 0;
+            if(routeName === "revenge") karma = 50;
+            if(routeName === "fear") karma = 0; // Fearは後で上がる
+            
+            localStorage.setItem("yojitsu_save", JSON.stringify({
+                route: routeName,
+                sanity: 100,
+                karma: karma
+            }));
+
+            // 遷移実行
+            window.location.href = `route_${routeName}.html`;
+            return;
+        }
+
+        const scene = scenes[sceneId];
+        
+        // 演出：通知
+        if(scene.action && scene.action.popup) {
+            dom.notifContent.innerHTML = scene.action.popup;
+            dom.notif.classList.add("active");
+        }
+
+        // 画面描画
+        dom.icon.innerText = scene.icon || "▪";
+        dom.text.innerHTML = scene.text;
+        
+        // テキスト表示アニメーション
+        dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
+
+        // 選択肢生成
+        dom.choices.innerHTML = "";
+        scene.choices.forEach(c => {
+            const btn = document.createElement("button");
+            btn.innerHTML = c.text;
+            if(c.class) btn.className = `btn-route ${c.class}`;
+            btn.onclick = () => render(c.next);
+            dom.choices.appendChild(btn);
+        });
+    }
+
+    render("start");
+</script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>埋まらない予実差の闇 - Final Chapter</title>
+<style>
+    /* ▼▼▼ 最終章：運命の精算 ▼▼▼ */
+    :root {
+        --bg-color: #000;
+        --text-color: #ccc;
+        --accent-blue: #4a90e2;
+        --accent-red: #b00;
+        --accent-ghost: #0ff;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: "Yu Mincho", serif;
+        line-height: 2.6;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+
+    #game-wrapper {
+        width: 100%;
+        max-width: 900px;
+        background-color: #050505;
+        box-shadow: 0 0 100px rgba(0,0,0,1);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid #222;
+        border-right: 1px solid #222;
+    }
+
+    /* 画面揺れ演出 */
+    @keyframes shake {
+        0% { transform: translate(1px, 1px) rotate(0deg); }
+        50% { transform: translate(-1px, 2px) rotate(-1deg); }
+        100% { transform: translate(1px, -2px) rotate(-1deg); }
+    }
+    .shake-effect { animation: shake 0.5s infinite; }
+
+    #visual-stage {
+        height: 280px;
+        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 5rem; border-bottom: 1px solid #333; position: relative; overflow: hidden;
+        transition: background 1s;
+    }
+    
+    #final-popup {
+        position: absolute; bottom: 30px; right: 30px; width: 350px;
+        background: #000; border-left: 4px solid var(--accent-red);
+        color: #fff; padding: 20px; font-family: sans-serif; font-size: 0.95rem;
+        box-shadow: 0 0 30px var(--accent-red);
+        opacity: 0; transform: translateY(50px); transition: all 1s;
+    }
+    #final-popup.show { opacity: 1; transform: translateY(0); }
+
+    #narrative-area { padding: 80px 60px; flex-grow: 1; font-size: 1.15rem; text-align: justify; }
+    p { margin-bottom: 3em; opacity: 0; animation: fadeIn 1.5s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .highlight { color: var(--accent-red); font-weight: bold; }
+    .name { color: var(--accent-blue); font-weight: bold; font-family: sans-serif; font-size: 0.9em; display: block; margin-bottom: 1em; }
+
+    .ghost-voice { 
+        color: var(--accent-ghost); font-family: monospace; 
+        text-shadow: 0 0 10px rgba(0,255,255,0.6); 
+        display: block; margin: 3em 0; padding: 20px; 
+        border-left: 1px solid var(--accent-ghost); background: rgba(0,255,255,0.05);
+    }
+
+    .ending-card {
+        margin-top: 50px; padding: 40px; border: 1px solid #333; text-align: center;
+        opacity: 0; animation: fadeIn 3s forwards; animation-delay: 1s;
+    }
+    .end-title { font-size: 2rem; margin-bottom: 20px; letter-spacing: 0.2em; font-weight: bold; }
+
+    #choices-container {
+        padding: 50px 80px 100px;
+        display: flex; flex-direction: column; gap: 25px;
+        background: #080808; border-top: 1px solid #222;
+    }
+    button {
+        background: #111; color: #888; border: 1px solid #333;
+        padding: 30px; text-align: left; font-family: "Yu Mincho", serif; font-size: 1.1rem;
+        cursor: pointer; transition: all 0.5s;
+    }
+    button:hover { background: #1a1a1a; color: #fff; border-color: #666; padding-left: 40px; }
+    
+    /* 分岐色 */
+    .btn-true { border-left: 4px solid var(--accent-blue); }
+    .btn-bad { border-left: 4px solid #666; }
+    .btn-dark { border-left: 4px solid var(--accent-red); }
+
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="visual-stage">
+        <span id="scene-icon">🌸</span>
+        <div id="final-popup">
+            <strong>Unknown User</strong><br>
+            <span id="popup-msg">その席は、埋まっています。</span>
+        </div>
+    </div>
+
+    <div id="narrative-area"></div>
+    <div id="choices-container"></div>
+</div>
+
+<script>
+    // ▼▼▼ シナリオデータ ▼▼▼
+    const scenes = {
+        // ----------------------------------------------------------------
+        // 第1章：偽りの平穏（完全復元版）
+        // ----------------------------------------------------------------
+        start: {
+            icon: "☕",
+            text: `
+                <span class="name">5月20日 18:30 経理部フロア</span>
+                <p>
+                季節は巡り、新緑の5月。<br>
+                社内を覆っていた重苦しい空気は、嘘のように晴れ渡っていた。<br>
+                犬飼先輩は「不慮の事故」で姿を消し、権田部長は「急性の心臓発作」で急死した。<br>
+                美咲を死に追いやった元凶たちは、物理的・社会的に抹殺されたのだ。
+                </p>
+                <p>
+                私は、美咲の「代理人」として、静かに業務をこなしていた。<br>
+                復讐は終わった。美咲の無念は晴らせたはずだ。<br>
+                私の心の中には常に冷たい氷のような塊があるが、日常は不思議と平穏だった。<br>
+                ……そう、あの日までは。
+                </p>
+                <p>
+                「亜久斗先輩……あの、話があります」
+                </p>
+                <p>
+                経理部の新人、<span style="color:#b55; font-weight:bold;">宮本 梨奈（みやもと りな）</span>が、おずおずと私に近づいてきた。<br>
+                彼女は明るく、真面目で、どこか生前の美咲を思わせる雰囲気を持っていた。<br>
+                私は彼女に促され、人目のつかない資料室へと向かった。
+                </p>
+            `,
+            choices: [
+                { text: "資料室へ移動する", next: "confession_scene" }
+            ]
+        },
+
+        // ----------------------------------------------------------------
+        // 第2章：告白（完全復元版）
+        // ----------------------------------------------------------------
+        confession_scene: {
+            icon: "💌",
+            text: `
+                <p>
+                資料室の重い扉を閉めると、周囲の雑音がかき消された。<br>
+                古びた紙の匂いと、梨奈の髪から香る柔軟剤の甘い匂いが混ざり合う。<br>
+                彼女は頬を赤らめ、上目遣いで私を見上げた。
+                </p>
+                <p>
+                「先輩、ずっと見てました。<br>
+                大変な時期なのに、文句も言わず、一人で経理部を支えてる先輩を。<br>
+                辛いことがあったはずなのに、逃げずに戦ってる先輩を」
+                </p>
+                <p>
+                彼女の手が、躊躇いながら私の袖を掴む。<br>
+                温かい。<br>
+                それは、氷のように冷え切った私の世界には存在しない、生きた人間の体温だった。<br>
+                その熱が、袖口から私の肌へと伝わってくる。
+                </p>
+                <p>
+                「私、先輩の支えになりたいんです。<br>
+                ……私じゃ、美咲さんの代わりにはなれませんか？」
+                </p>
+                <p>
+                その言葉に、私の心臓が大きく跳ねた。<br>
+                「付き合ってください。先輩を、一人にしたくないんです」
+                </p>
+            `,
+            choices: [
+                { text: "彼女の温もりを受け入れようとする", next: "hesitation" }
+            ]
+        },
+
+        hesitation: {
+            icon: "💓",
+            text: `
+                <p>
+                目の前に、私がずっと欲しかった「普通の幸せ」がある。<br>
+                亡霊に怯える夜も、復讐に手を染める罪悪感もない世界。<br>
+                彼女の手を取れば、私はこちらの世界（生者）に戻れるかもしれない。
+                </p>
+                <p>
+                「梨奈ちゃん……ありがとう。僕でよければ……」
+                </p>
+                <p>
+                私は震える手で、彼女の手を握り返そうとした。<br>
+                そう言いかけた、その時だった。
+                </p>
+            `,
+            choices: [
+                { text: "……！？（異変）", next: "intrusion" }
+            ]
+        },
+
+        // ----------------------------------------------------------------
+        // 第3章：亡霊の介入（完全復元版）
+        // ----------------------------------------------------------------
+        intrusion: {
+            icon: "📱",
+            text: `
+                <p>
+                <strong style="color:#b00; font-size:1.5rem;">ブブブブブブッ！！！</strong>
+                </p>
+                <p>
+                私のスマホではない。<br>
+                梨奈のポケットに入っているスマホが、テーブルの上で暴れる虫のように異常な振動音を立てた。<br>
+                「えっ……？」<br>
+                彼女が慌てて取り出す。画面を見た瞬間、彼女の顔から血の気が引いた。
+                </p>
+                <p>
+                「何これ……通知が、止まらない……」
+                </p>
+                <p>
+                彼女のスマホ画面を覗き込む。<br>
+                そこには、見覚えのあるアイコンが、狂ったような速度でメッセージを吐き出し続けていた。<br>
+                Microsoft Teams。<br>
+                差出人：Unknown User。
+                </p>
+            `,
+            action: { popup: "ソノ席ハ埋マッテイマス<br>ソノ席ハ埋マッテイマス<br>泥棒猫<br>死ネ" },
+            choices: [
+                { text: "部屋の異変に気づく", next: "poltergeist" }
+            ]
+        },
+
+        poltergeist: {
+            icon: "👻",
+            action: { shake: true },
+            text: `
+                <p>
+                <span class="ghost-voice">
+                『泥棒猫。死ネ。死ネ。死ネ。死ネ。』
+                </span>
+                </p>
+                <p>
+                資料室の空気が、瞬時に氷点下まで下がった。<br>
+                頭上の蛍光灯が激しく明滅し、バチバチと火花を散らす。
+                </p>
+                <p>
+                「きゃあっ！？」
+                </p>
+                <p>
+                巨大なスチール棚が、見えない力に押されるようにガタガタと揺れ始めた。<br>
+                美咲だ。<br>
+                彼女は成仏などしていなかった。<br>
+                私を「所有物」と認識し、近づく女を物理的に排除しようとしているのだ。
+                </p>
+                <p>
+                「先輩、助けて……！」
+                </p>
+            `,
+            choices: [
+                { text: "このままでは梨奈が死ぬ", next: "ultimatum" }
+            ]
+        },
+
+        // ----------------------------------------------------------------
+        // 第4章：最終決断
+        // ----------------------------------------------------------------
+        ultimatum: {
+            icon: "⚖️",
+            text: `
+                <p>
+                <span class="highlight">ギギギギギ……ッ！</span>
+                </p>
+                <p>
+                金属が悲鳴を上げる。<br>
+                高さ2メートルを超える書類棚が、ゆっくりと梨奈の方へ傾いていく。<br>
+                彼女は腰を抜かし、動けない。
+                </p>
+                <p>
+                美咲の怨念を鎮める方法は、私には分かっていた。<br>
+                彼女（美咲）への「絶対的な忠誠」を示すこと。<br>
+                つまり、目の前の新しい幸せ（梨奈）を、私の手で破壊することだ。
+                </p>
+                <p>
+                どうする？<br>
+                美咲の怒りを鎮めるか、身を挺して梨奈を守るか、それとも……。
+                </p>
+            `,
+            choices: [] // JSで分岐生成
+        },
+
+        // ============================================================
+        // BAD END ROUTE: 死亡（梨奈を庇う・拡張版）
+        // ============================================================
+        bad_1_protect: {
+            icon: "🛡️",
+            text: `
+                <p>「危ない！ 梨奈ちゃん！」</p>
+                <p>私は考えるよりも先に体が動いていた。<br>
+                計算も、損得も、幽霊への恐怖もない。<br>
+                ただ、目の前の生きた温もりを守りたい一心で。</p>
+                <p>私は梨奈に覆いかぶさり、彼女を床へ押し倒した。<br>
+                「先輩！？」</p>
+                <p>その瞬間、頭上で金属がひしゃげる轟音が響いた。</p>
+            `,
+            choices: [
+                { text: "衝撃に備える", next: "bad_2_impact" }
+            ]
+        },
+        bad_2_impact: {
+            icon: "💥",
+            text: `
+                <p><span class="ghost-voice">『……裏切ッタネ。亜久斗クン。』</span></p>
+                <p>耳元で、美咲の冷たい溜息が聞こえた気がした。</p>
+                <p>直後、数百キロの書類棚が、私の背中を直撃した。<br>
+                <strong>グシャッ。</strong><br>
+                脊椎が砕け、内臓が破裂する、生々しい音。</p>
+                <p>「が、はっ……！」<br>
+                口から大量の血が溢れ出し、梨奈の白いブラウスを赤く染める。<br>
+                梨奈の悲鳴が遠く聞こえる。</p>
+            `,
+            choices: [
+                { text: "薄れゆく意識の中で", next: "end_bad" }
+            ]
+        },
+        end_bad: {
+            icon: "⚰️",
+            effect: { stopShake: true, redBg: true },
+            text: `
+                <p>痛みはすぐに消えた。代わりに、深い闇が私を包み込む。</p>
+                <p>闇の向こうから、美咲が歩いてくるのが見えた。<br>
+                彼女は笑っていた。とても優しく、とても恐ろしい笑顔で。</p>
+                <p><span class="ghost-voice">『やっと来てくれたね。待ってたよ。』</span></p>
+                <p>彼女の冷たい手が、私の魂を掴む。<br>
+                もう逃げられない。私たちは、死の底で永遠に一つになるのだ。</p>
+                <div class="ending-card" style="border-color:#666; color:#666;">
+                    <div class="end-title">BAD END: 偶発債務の履行 (Death)</div>
+                    <p>愛に殉じた代償は、永遠の闇だった。</p>
+                </div>
+            `,
+            choices: [
+                { text: "タイトルに戻る", next: "back_to_title" }
+            ]
+        },
+
+        // ============================================================
+        // TRUE END ROUTE: 生存（梨奈を突き放す・拡張版）
+        // ============================================================
+        true_1_act: {
+            icon: "💔",
+            text: `
+                <p>梨奈を守る方法は一つしかない。<br>
+                美咲（霊）を満足させること。<br>
+                つまり、私が梨奈を徹底的に拒絶し、美咲への忠誠を示すことだ。</p>
+                <p>私は心を鬼にして、愛する後輩を睨みつけた。<br>
+                「……勘違いしないでくれよ！！」</p>
+                <p>「え……？」<br>
+                梨奈が涙目のまま凍りつく。</p>
+            `,
+            choices: [
+                { text: "残酷な言葉を浴びせる", next: "true_2_reject" }
+            ]
+        },
+        true_2_reject: {
+            icon: "🤬",
+            text: `
+                <p>「君の仕事が遅いから手伝ってただけだ！ 迷惑なんだよ！」<br>
+                「付き合う？ 本気か？ 俺の評価が下がるだろ！？」</p>
+                <p>私はありもしない悪態をつき続けた。<br>
+                自分の心が引き裂かれるのを感じながら。</p>
+                <p>「消えろ！ 二度と俺の前に顔を見せるな！」</p>
+                <p>「……っ！！」<br>
+                梨奈の目から大粒の涙が溢れ出した。<br>
+                「せ、先輩……ひどい……ッ！」<br>
+                彼女は泣きながら資料室を飛び出していった。</p>
+            `,
+            choices: [
+                { text: "静寂が訪れる", next: "end_true" }
+            ]
+        },
+        end_true: {
+            icon: "🏚️",
+            effect: { stopShake: true },
+            text: `
+                <p>彼女の足音が遠ざかると同時に、棚の揺れがピタリと止まった。<br>
+                荒れ果てた資料室に、静寂が戻る。</p>
+                <p><span class="ghost-voice">『うん。よくできました。』</span></p>
+                <p>虚空から、満足げな声が響いた。<br>
+                <span class="ghost-voice">『コレデ邪魔者ハ居ナクナッタネ。ずっと一緒だよ、亜久斗クン……』</span></p>
+                <p>私はその場に崩れ落ちた。<br>
+                命は助かった。だが、私は一生、彼女の呪いと共に生きていく。<br>
+                誰とも結ばれず、誰も愛さず、ただ過去の亡霊に監視されながら。<br>
+                それが、生き残った私の受ける罰なのだ。</p>
+                <div class="ending-card" style="border-color:#4a90e2; color:#4a90e2;">
+                    <div class="end-title">TRUE END: 連結決算 (Possession)</div>
+                    <p>未練という負債は、完済されることがない。</p>
+                </div>
+            `,
+            choices: [
+                { text: "タイトル画面へ戻る", next: "back_to_title" }
+            ]
+        },
+
+        // ============================================================
+        // DARK END ROUTE: 悪魔（梨奈を生贄にする・拡張版）
+        // ============================================================
+        dark_1_push: {
+            icon: "😈",
+            text: `
+                <p>ふつふつと、黒い感情が湧き上がってくる。<br>
+                復讐の快感を知ってしまった私の心は、既に人間のものではなくなっていたのかもしれない。</p>
+                <p>目の前で怯える梨奈が、ただの「障害物」に見えた。</p>
+                <p>「美咲。……新しいおもちゃだよ」</p>
+                <p>私は微笑んで、腰を抜かしている梨奈に近づいた。<br>
+                「先輩……？ 何を……」</p>
+            `,
+            choices: [
+                { text: "彼女を突き飛ばす", next: "dark_2_sacrifice" }
+            ]
+        },
+        dark_2_sacrifice: {
+            icon: "🩸",
+            text: `
+                <p>私は梨奈の肩を、思い切り蹴り飛ばした。</p>
+                <p>「きゃあっ！？」<br>
+                彼女は無防備に倒れ込む。<br>
+                その位置は、傾いていた巨大なスチール棚の真下だった。</p>
+                <p><span class="highlight">ドォォォォン！！！</span></p>
+                <p>鈍い音。短い悲鳴。そして、骨が砕ける音。<br>
+                床に広がった書類が、急速に赤黒く染まっていく。</p>
+                <p>「あ……あ……」<br>
+                棚の下から、痙攣する白い手がはみ出していた。</p>
+            `,
+            choices: [
+                { text: "高笑いする", next: "end_dark" }
+            ]
+        },
+        end_dark: {
+            icon: "👁️",
+            effect: { stopShake: true, redBg: true },
+            text: `
+                <p>私はそれを見下ろしながら、腹の底から笑い出した。<br>
+                罪悪感？ いいや、感じるのは全能感だ。</p>
+                <p><span class="ghost-voice">『アハハハハ！ 最高！ 私達、本当ニ一ツニナレタネ！』</span></p>
+                <p>美咲の狂気が、私の中に流れ込んでくる。<br>
+                良心も、人間性も捨て去り、私はこの会社の「死神」となったのだ。</p>
+                <p>翌年の4月。<br>
+                私は経理マネージャーとして、震える新入社員に向かって微笑む。</p>
+                <p>「ようこそ。君の人生、<span class="highlight">僕たち</span>が管理してあげるよ」</p>
+                <div class="ending-card" style="border-color:#b00; color:#b00;">
+                    <div class="end-title">DARK END: 悪魔合体 (The Manager)</div>
+                    <p>予実は統合された。狂気という名の黒字決算で。</p>
+                </div>
+            `,
+            choices: [
+                { text: "タイトルに戻る", next: "back_to_title" }
+            ]
+        }
+    };
+
+    // ▼▼▼ エンジン部 ▼▼▼
+    const dom = {
+        text: document.getElementById("narrative-area"),
+        choices: document.getElementById("choices-container"),
+        icon: document.getElementById("scene-icon"),
+        wrapper: document.getElementById("game-wrapper"),
+        popup: document.getElementById("final-popup"),
+        popupMsg: document.getElementById("popup-msg")
+    };
+
+    // セーブデータ読み込み
+    const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { karma: 0 };
+
+    function render(sceneId) {
+        // ★スクロール修正：必ず一番上へ★
+        window.scrollTo(0, 0);
+
+        if(sceneId === "back_to_title") {
+            window.location.href = "index.html";
+            return;
+        }
+
+        // --- 最終分岐の生成 ---
+        if (sceneId === "ultimatum") {
+            const c = [];
+            // 1. BAD END（庇う） - 常に表示
+            c.push({ text: "「危ない！」と叫んで梨奈を庇う", next: "bad_1_protect", class: "btn-bad" });
+
+            // 2. TRUE END（突き放す） - 常に表示
+            c.push({ text: "「迷惑なんだよ！」と罵倒して梨奈を遠ざける", next: "true_1_act", class: "btn-true" });
+            
+            // 3. DARK END（生贄） - 殺意が高い場合のみ出現
+            if (savedData.karma >= 50) {
+                c.push({ text: "【殺意】梨奈を蹴り飛ばし、美咲に捧げる", next: "dark_1_push", class: "btn-dark" });
+            }
+            scenes["ultimatum"].choices = c;
+        }
+
+        const scene = scenes[sceneId];
+        
+        // 演出処理
+        if (scene.action && scene.action.popup) {
+            dom.popupMsg.innerHTML = scene.action.popup;
+            dom.popup.classList.add("show");
+        }
+        if (scene.action && scene.action.shake) {
+            dom.wrapper.classList.add("shake-effect");
+        }
+        if (scene.effect) {
+            if(scene.effect.stopShake) dom.wrapper.classList.remove("shake-effect");
+            if(scene.effect.redBg) {
+                dom.wrapper.style.backgroundColor = "#1a0000";
+                document.getElementById("visual-stage").style.background = "#300";
+            }
+        }
+
+        // 画面描画
+        dom.icon.innerText = scene.icon || "🌸";
+        dom.text.innerHTML = scene.text;
+        dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
+
+        // 選択肢生成
+        dom.choices.innerHTML = "";
+        if (scene.choices) {
+            scene.choices.forEach(c => {
+                const btn = document.createElement("button");
+                btn.innerText = c.text;
+                if(c.class) btn.className = c.class;
+                btn.onclick = () => render(c.next);
+                dom.choices.appendChild(btn);
+            });
+        }
+    }
+
+    render("start");
+
+</script>
+</body>
+</html>

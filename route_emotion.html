@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>埋まらない予実差の闇 - Chapter 1: Emotion</title>
+<style>
+    /* ▼▼▼ 愛執のセピアと涙のデザイン ▼▼▼ */
+    :root {
+        --bg-color: #1a1005;
+        --text-main: #e0d0c0;
+        --accent-orange: #d48806;
+        --accent-tear: #88ccff;
+        --accent-ghost: #ffddaa;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+        line-height: 2.5;
+        letter-spacing: 0.05em;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+
+    #game-wrapper {
+        width: 100%;
+        max-width: 840px;
+        background-color: #221505;
+        box-shadow: 0 0 80px rgba(212, 136, 6, 0.1);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid #443311;
+        border-right: 1px solid #443311;
+    }
+
+    /* ビジュアルヘッダー */
+    #scene-header {
+        height: 260px;
+        background: radial-gradient(circle at center, #332211 0%, #000 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 5rem; position: relative; overflow: hidden;
+        border-bottom: 1px solid #554422;
+        filter: sepia(0.4);
+        transition: all 2s;
+    }
+    
+    /* 涙と光の演出 */
+    .tear-overlay {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: radial-gradient(circle, transparent 60%, rgba(136, 204, 255, 0.15) 100%);
+        filter: blur(2px); opacity: 0; transition: opacity 3s; pointer-events: none;
+    }
+    .tear-overlay.active { opacity: 1; }
+
+    /* 本文エリア */
+    #narrative-area {
+        padding: 60px 50px;
+        flex-grow: 1;
+        font-size: 1.1rem;
+        text-align: justify;
+    }
+    p { margin-bottom: 2.5em; opacity: 0; animation: fadeIn 1.5s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .highlight { color: var(--accent-orange); font-weight: bold; }
+    .name { color: #bb9977; font-weight: bold; font-family: sans-serif; font-size: 0.9em; display: block; margin-bottom: 1em; }
+    
+    /* 亡霊の声 */
+    .ghost-voice { 
+        color: var(--accent-ghost); font-family: "Yu Mincho", serif; font-style: italic;
+        text-shadow: 0 0 10px rgba(255, 200, 100, 0.4);
+        border-left: 2px solid var(--accent-orange); padding-left: 20px; margin: 2em 0;
+        letter-spacing: 0.1em;
+    }
+
+    /* 回想シーンのテキスト */
+    .flashback { color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+
+    /* 選択肢エリア */
+    #choices-container {
+        padding: 40px 60px 80px;
+        display: flex; flex-direction: column; gap: 20px;
+        background: linear-gradient(to top, #0d0802 0%, #221505 100%);
+        border-top: 1px solid #443311;
+    }
+    button {
+        background: #2a1a0a; color: #ccaa88; border: 1px solid #553311;
+        padding: 25px 30px; text-align: left; 
+        font-family: "Yu Mincho", serif; font-size: 1.05rem;
+        cursor: pointer; transition: all 0.5s; position: relative;
+    }
+    button:hover { background: #3d2610; color: #fff; border-color: #d48806; padding-left: 40px; box-shadow: 0 0 20px rgba(212, 136, 6, 0.2); }
+    button::before { content: "💧"; position: absolute; left: 15px; opacity: 0; transition: opacity 0.3s; font-size: 0.8em; }
+    button:hover::before { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="scene-header">
+        <span id="scene-icon">🥀</span>
+        <div id="tear-fx" class="tear-overlay"></div>
+    </div>
+
+    <div id="narrative-area"></div>
+    <div id="choices-container"></div>
+</div>
+
+<script>
+    // ▼▼▼ シナリオデータ（愛執編・拡張版） ▼▼▼
+    const scenes = {
+        // --- 導入 ---
+        start: {
+            icon: "🥀",
+            text: `
+                <span class="name">深夜2:20 財務経理部フロア</span>
+                <p>
+                「美咲……ッ！」
+                </p>
+                <p>
+                画面に表示された『Unknown User』の文字を見た瞬間、張り詰めていた糸が切れた。<br>
+                恐怖ではない。溢れ出たのは、堰を切ったような後悔と愛しさだった。
+                </p>
+                <p>
+                私は震える手でマウスを握り、メッセージを開いた。
+                </p>
+                <p class="ghost-voice">
+                『ねえ、亜久斗くん。<br>
+                実績が合わないよ。<br>
+                私が生きたかった未来と、死んでしまった現実の差が埋まらないの』
+                </p>
+                <p>
+                その文面は、生前の彼女そのものだった。<br>
+                真面目で、少し不器用で、いつも数字（仕事）を通して私に語りかけてきた彼女。<br>
+                視界が涙で滲む。<br>
+                「ごめん……ごめん美咲。あの時、電話に出てやれなくて……」
+                </p>
+            `,
+            choices: [
+                { text: "涙を拭い、彼女のデスクへ向かう", next: "desk_memory" }
+            ]
+        },
+
+        // --- デスク：香りの記憶 ---
+        desk_memory: {
+            icon: "🧴",
+            effect: { tears: true },
+            text: `
+                <p>
+                私は引き寄せられるように、美咲のデスクの前に立った。<br>
+                埃を被ったモニター。枯れた観葉植物。<br>
+                時が止まったその場所で、私は引き出しを開けた。
+                </p>
+                <p>
+                そこには、使いかけのハンドクリームが転がっていた。<br>
+                私があげたものだ。<br>
+                蓋を開けると、微かに<span class="highlight">ラベンダーの香り</span>が漂った。
+                </p>
+                <p>
+                その瞬間、香りとともに、色褪せない記憶が鮮やかに蘇る。<br>
+                あれは、まだ何もかもが上手くいっていた頃の――。
+                </p>
+            `,
+            choices: [
+                { text: "【回想】水族館デートの静かな時間", next: "flashback_aquarium_1" },
+                { text: "【回想】誕生日の笑顔と誓い", next: "flashback_birthday_1" }
+            ]
+        },
+
+        // ============================================================
+        // 回想A：水族館（3ステップ）
+        // ============================================================
+        flashback_aquarium_1: {
+            icon: "🐬",
+            effect: { blue: true },
+            text: `
+                <p class="flashback">
+                （2年前の夏――）
+                </p>
+                <p class="flashback">
+                深い青色の光に包まれた、巨大水槽の前。<br>
+                私たちは人混みを避けて、静かなコーナーのベンチに座っていた。<br>
+                目の前を、無数のクラゲがゆらゆらと漂っていく。
+                </p>
+                <p class="flashback">
+                「綺麗だね……」<br>
+                美咲がポツリと呟いた。<br>
+                その横顔は、水槽の光を受けて透き通るように白く、儚げだった。
+                </p>
+                <p class="flashback">
+                仕事に追われ、疲弊していた時期だった。<br>
+                ここには、オフィスの喧騒も、上司の怒号もない。<br>
+                ただ、優しい時間だけが流れていた。
+                </p>
+            `,
+            choices: [
+                { text: "彼女が口を開く", next: "flashback_aquarium_2" }
+            ]
+        },
+        flashback_aquarium_2: {
+            icon: "💬",
+            effect: { blue: true },
+            text: `
+                <p class="flashback">
+                『ねえ、亜久斗くん』
+                </p>
+                <p class="flashback">
+                彼女が私の肩に頭を預けてきた。<br>
+                シャンプーの香りと、彼女の体温が伝わってくる。
+                </p>
+                <p class="flashback">
+                『私ね、こうしている時が一番幸せ。<br>
+                亜久斗くんの隣にいると、数字のことも、明日の会議のことも、全部忘れられるの。<br>
+                ……ずっと、このままがいいな』
+                </p>
+                <p class="flashback">
+                それは珍しく彼女が吐いた、弱音であり、本音だった。<br>
+                私は彼女の震える手を、そっと握りしめた。
+                </p>
+            `,
+            choices: [
+                { text: "彼女の手を握り返す", next: "flashback_aquarium_3" }
+            ]
+        },
+        flashback_aquarium_3: {
+            icon: "🤙",
+            effect: { blue: true },
+            text: `
+                <p class="flashback">
+                『私の手、冷たいでしょ？』<br>
+                『ううん。亜久斗くんの手が温かいから、ちょうどいい』
+                </p>
+                <p class="flashback">
+                彼女は私の指に、自分の指を絡ませた。<br>
+                『約束して。また来ようね。辛くなったら、ここに来て深呼吸しよう』
+                </p>
+                <p class="flashback">
+                『ああ、約束するよ』
+                </p>
+                <p>
+                指切りの温もり。<br>
+                守りたかった。あの静かな時間を、あの小さな手を、命に代えても守るべきだった。<br>
+                それなのに、私は――。
+                </p>
+            `,
+            choices: [
+                { text: "現実に引き戻される", next: "ghost_request" }
+            ]
+        },
+
+        // ============================================================
+        // 回想B：誕生日（3ステップ）
+        // ============================================================
+        flashback_birthday_1: {
+            icon: "🎂",
+            effect: { gold: true },
+            text: `
+                <p class="flashback">
+                （去年の冬、彼女の誕生日――）
+                </p>
+                <p class="flashback">
+                予約していたレストランの個室。<br>
+                ウェイターが運んできたケーキを見て、彼女は目を丸くした。
+                </p>
+                <p class="flashback">
+                『えっ、こんな立派なプレート……！ 嘘、私の名前入ってる！』
+                </p>
+                <p class="flashback">
+                子供のようにはしゃぐ彼女。<br>
+                普段、会社では気丈に振る舞っている彼女が、私の前だけで見せる無防備な笑顔。<br>
+                それを見ているだけで、私は胸がいっぱいだった。
+                </p>
+            `,
+            choices: [
+                { text: "プレゼントを渡す", next: "flashback_birthday_2" }
+            ]
+        },
+        flashback_birthday_2: {
+            icon: "🎁",
+            effect: { gold: true },
+            text: `
+                <p class="flashback">
+                『はい、これ』<br>
+                私が小さな箱を差し出すと、彼女は震える手でリボンを解いた。
+                </p>
+                <p class="flashback">
+                中から出てきたのは、シンプルなシルバーのネックレス。<br>
+                決して高価なものではないけれど、彼女はまるで宝石でも見るかのように目を輝かせた。
+                </p>
+                <p class="flashback">
+                『ありがとう……！ すごく素敵。<br>
+                ねえ、着けて？』
+                </p>
+                <p class="flashback">
+                彼女が背を向けて髪を持ち上げる。<br>
+                白いうなじにネックレスをかけ、留め具を止める。<br>
+                鏡を見た彼女は、照れくさそうに、でも誇らしげに微笑んだ。
+                </p>
+            `,
+            choices: [
+                { text: "彼女が振り返る", next: "flashback_birthday_3" }
+            ]
+        },
+        flashback_birthday_3: {
+            icon: "✨",
+            effect: { gold: true },
+            text: `
+                <p class="flashback">
+                『一生の宝物にするね。<br>
+                ……ねえ、亜久斗くん。お婆ちゃんになっても、こうして祝ってくれる？』
+                </p>
+                <p class="flashback">
+                彼女の瞳には、疑いようのない「二人の未来」が映っていた。<br>
+                『当たり前だろ』<br>
+                私は即答した。何の疑いもなく。
+                </p>
+                <p>
+                嘘つきだ。私は何ひとつ約束を守れなかった。<br>
+                そのネックレスを着けたまま、彼女は冷たいアスファルトの上に――。
+                </p>
+                <p>
+                「ごめん……本当にごめん……ッ！」
+                </p>
+            `,
+            choices: [
+                { text: "現実に引き戻される", next: "ghost_request" }
+            ]
+        },
+
+        // --- 霊との対話（現実へ） ---
+        ghost_request: {
+            icon: "👻",
+            text: `
+                <p>
+                「会いたい……もう一度、会いたいよ」
+                </p>
+                <p>
+                私が泣き崩れると、ふわりと冷たい風が頬を撫でた。<br>
+                顔を上げると、隣の席に半透明の影が座っていた。<br>
+                彼女は悲しげに、けれど慈愛に満ちた目で私を見つめている。
+                </p>
+                <p class="ghost-voice">
+                『……泣カナイデ。亜久斗クン。』<br>
+                『私ネ、悔シイの。亜久斗クンと一緒ニ、幸セニナリタカッタ。<br>
+                デモ、アイツラガ私ヲ壊シタ。』
+                </p>
+                <p>
+                「アイツラ……権田と犬飼か」
+                </p>
+                <p class="ghost-voice">
+                『ウン。許セナイ。<br>
+                ネエ、明日、実家ニ来テ。<br>
+                私ノスマホヲ取ッテキテ。ソレガアレバ、全部終ワラセラレルカラ。』
+                </p>
+            `,
+            choices: [
+                { text: "「分かった。君のためなら何でもする」", next: "home_sorrow" }
+            ]
+        },
+
+        // --- 実家訪問：共有する悲しみ ---
+        home_sorrow: {
+            icon: "🏠",
+            text: `
+                <span class="name">翌日 日曜日 美咲の実家</span>
+                <p>
+                インターホンを押すと、美咲の母親が出てきた。<br>
+                彼女は私を見るなり、憎悪ではなく、深い悲しみの色を目に浮かべた。<br>
+                「……よく来てくれたわね」
+                </p>
+                <p>
+                通された仏間。遺影の前で、私は土下座をした。<br>
+                「申し訳ありませんでした。僕が……僕がもっと早く気づいていれば」<br>
+                畳に額を擦り付け、謝罪を繰り返す。
+                </p>
+                <p>
+                母親は静かに、私の前に座った。<br>
+                「あの子の日記を見たわ。最期まであんたのことだけは心配してた。<br>
+                『亜久斗くんを巻き込みたくない、彼には笑っていてほしい』って」
+                </p>
+            `,
+            choices: [
+                { text: "「僕もです。彼女を愛していました」と共に泣く", next: "receive_smartphone" },
+                { text: "「彼女の無念は、僕が晴らします」と誓う", next: "receive_smartphone" }
+            ]
+        },
+
+        receive_smartphone: {
+            icon: "📱",
+            text: `
+                <p>
+                母親は、美咲のスマホを私に託した。<br>
+                「あの子の魂を、あんたに預けるわ」
+                </p>
+                <p>
+                スマホを受け取る。画面には、未送信のメッセージが残っていた。<br>
+                『大好きだよ。さようなら』
+                </p>
+                <p>
+                その言葉が、私の心に温かい光を灯した。<br>
+                復讐ではない。これは「供養」なのだ。<br>
+                彼女を縛り付ける未練を断ち切り、空へ還すための。
+                </p>
+            `,
+            choices: [
+                { text: "月曜日、最後の儀式へ", next: "monday_end" }
+            ]
+        },
+
+        // --- 月曜日：静かなる幕引き ---
+        monday_end: {
+            icon: "⚰️",
+            text: `
+                <span class="name">月曜日 経理部フロア</span>
+                <p>
+                私が手を下す必要はなかった。<br>
+                美咲の想い（スマホ）を会社に持ち込んだだけで、因果の歯車は回り始めた。
+                </p>
+                <p>
+                <span class="highlight">犬飼先輩</span>は、出社するなり何もない空中に向かって謝罪を始めた。<br>
+                「ごめんなさい！ もうしません！ 許して！」<br>
+                彼は見えない何かに怯えて後ずさりし、そのまま階段から足を踏み外した。<br>
+                一瞬の出来事だった。
+                </p>
+                <p>
+                <span class="highlight">権田部長</span>は、会議中に胸を押さえて倒れた。<br>
+                苦悶の表情を浮かべる彼を見て、私は憎しみよりも憐れみを感じた。<br>
+                地位も名誉も、死の前では無意味だ。
+                </p>
+            `,
+            choices: [
+                { text: "「楽におなりください」と心の中で祈る", next: "epilogue_mercy" },
+                { text: "ただ静かに、その最期を見届ける", next: "epilogue_silence" }
+            ]
+        },
+
+        // --- エピローグ：慈悲と愛 ---
+        epilogue_mercy: {
+            icon: "🙏",
+            text: `
+                <p>
+                騒然とするオフィスの中で、私は目を閉じた。<br>
+                彼らの死によって、美咲の魂が少しでも安らぐことを祈った。
+                </p>
+                <p>
+                「……終わったよ、美咲」
+                </p>
+                <p>
+                ふと、ラベンダーの香りが鼻をくすぐった気がした。<br>
+                彼女の気配が、ふわりと天井へ昇っていく。<br>
+                けれど、全てが消えたわけではない。
+                </p>
+                <p>
+                私の中には、彼女への愛と、果たせなかった約束が残っている。<br>
+                それを背負って生きていくことこそが、私の贖罪であり、彼女への愛の証なのだ。
+                </p>
+                <p>
+                5月。新しい季節が始まる。<br>
+                私の心には、冷たくも優しい「彼女」が住み続けている。
+                </p>
+            `,
+            choices: [
+                { text: "物語はクライマックスへ（climax.htmlへ）", next: "to_climax" }
+            ]
+        },
+
+        // （※内部処理用：無言で見届けるルートも同じ結末へ）
+        epilogue_silence: {
+            icon: "🌑",
+            text: `
+                <p>
+                騒然とするオフィスの中で、私はただ静かに立ち尽くしていた。<br>
+                因果応報。<br>
+                彼らは自らの罪の重さに耐えきれず、自滅したのだ。
+                </p>
+                <p>
+                「……さようなら」
+                </p>
+                <p>
+                私は彼らに、そして美咲の怨念に別れを告げた。<br>
+                これで彼女も、苦しみから解放されたはずだ。
+                </p>
+                <p>
+                しかし、私の中の時間は止まったままだ。<br>
+                彼女のいない世界で、私は彼女の影を抱いて生きていく。<br>
+                それが、生き残った私の役割だから。
+                </p>
+            `,
+            choices: [
+                { text: "物語はクライマックスへ（climax.htmlへ）", next: "to_climax" }
+            ]
+        }
+    };
+
+    // ▼▼▼ エンジン部 ▼▼▼
+    const dom = {
+        text: document.getElementById("narrative-area"),
+        choices: document.getElementById("choices-container"),
+        icon: document.getElementById("scene-icon"),
+        tears: document.getElementById("tear-fx"),
+        header: document.getElementById("scene-header")
+    };
+
+    // セーブデータ管理
+    const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "emotion", sanity: 100, karma: 0 };
+
+    function render(sceneId) {
+        // ★スクロール修正：必ず一番上へ★
+        window.scrollTo(0, 0);
+
+        // --- 特殊処理：クライマックスへ遷移 ---
+        if(sceneId === "to_climax") {
+            // 愛執ルートは「美咲への愛」が強い。
+            savedData.route = "emotion";
+            savedData.items = ["美咲のスマホ(遺品)", "ハンドクリーム"];
+            localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
+            
+            window.location.href = "climax.html";
+            return;
+        }
+
+        const scene = scenes[sceneId];
+        
+        // 演出更新（色味の変更など）
+        if(scene.effect) {
+            if(scene.effect.tears) dom.tears.classList.add("active");
+            if(scene.effect.blue) dom.header.style.filter = "hue-rotate(180deg) sepia(0.2)"; // 水族館風
+            if(scene.effect.gold) dom.header.style.filter = "hue-rotate(40deg) sepia(0.5) brightness(1.2)"; // 誕生日風
+        } else {
+            dom.tears.classList.remove("active");
+            dom.header.style.filter = "sepia(0.4)"; // デフォルト
+        }
+
+        // 画面描画
+        dom.icon.innerText = scene.icon || "🥀";
+        dom.text.innerHTML = scene.text;
+        
+        // テキストフェードイン
+        dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1500, fill:"forwards"});
+
+        // 選択肢生成
+        dom.choices.innerHTML = "";
+        scene.choices.forEach(c => {
+            const btn = document.createElement("button");
+            btn.innerText = c.text;
+            btn.onclick = () => render(c.next);
+            dom.choices.appendChild(btn);
+        });
+    }
+
+    // 開始
+    render("start");
+
+</script>
+</body>
+</html>
