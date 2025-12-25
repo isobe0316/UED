@@ -124,6 +124,8 @@
     <div id="choices-container"></div>
 </div>
 
+<script src="audio.js"></script>
+
 <script>
     // セーブデータ確認
     const save = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
@@ -155,11 +157,12 @@
         }
     }
 
-    // ▼▼▼ シナリオデータ（最終完全版） ▼▼▼
+    // ▼▼▼ シナリオデータ（最終完全版：音響演出追加） ▼▼▼
     const scenes = {
         // --- 導入 ---
         start: {
             icon: "🏢",
+            music: "office", // ★環境音：深夜の空調音
             text: `
                 <p>202X年 4月15日 深夜2:15。財務経理部フロア。</p>
                 <p>オフィスの空調が、獣の寝息のような低い唸り声を上げている。<br>
@@ -187,6 +190,7 @@
         // --- 分岐1-A：デスク調査（未練） ---
         investigate_desk: {
             icon: "🥀",
+            music: "mystery", // ★BGM：少し不思議な雰囲気
             text: `
                 <p>私は椅子を軋ませて立ち上がり、薄暗い通路を歩いて彼女のデスクへと近づいた。<br>
                 そこだけ空気が澱み、時間が止まっているように感じる。</p>
@@ -211,6 +215,7 @@
         // --- 分岐1-B：仕事強行（狂気） ---
         force_work: {
             icon: "📉",
+            sound: "glitch", // ★SE：バグ音
             text: `
                 <p>感傷に浸っている時間はない。<br>
                 私が数字を合わせなければ、明日の役員会で経理部長が恥をかく。<br>
@@ -235,6 +240,8 @@
         // --- 合流：通知イベント ---
         incident_trigger: {
             icon: "🔔",
+            sound: "ping",  // ★SE：通知音（Ping＋心臓音＋静寂コンボ）
+            music: "stop",  // ★BGM停止：ここから無音の静寂
             action: { popup: "件名: 予実差異（Variance）の報告<br><br>ねえ、実績が合わないよ。<br>私が生きたかった未来と、死んだ現実の差が埋まらないの。" },
             text: `
                 <p><strong style="color:#6264a7; font-size:1.3rem;">ピン！♪</strong></p>
@@ -258,6 +265,7 @@
         // --- 追加分岐ルート：拒絶の代償 ---
         attempt_ignore: {
             icon: "🚫",
+            music: "horror", // ★BGM：不協和音（恐怖）
             text: `
                 <p>「……馬鹿な。誰かの悪質な悪戯だ」</p>
                 <p>私は自分に言い聞かせるように呟き、マウスカーソルを通知の「×」ボタンへ動かした。<br>
@@ -278,6 +286,7 @@
         // --- メッセージ開示 ---
         message_reveal: {
             icon: "💻",
+            music: "horror", // ★BGM：恐怖のテーマ
             text: `
                 <p>私は震える指でマウスを操作し、メッセージを開いた。（あるいは、勝手に開かれた。）</p>
                 <p class="ghost-voice">
@@ -308,6 +317,7 @@
         // --- 最終分岐 ---
         final_choice: {
             icon: "⚖️",
+            music: "abyss", // ★BGM：深淵の地鳴り（決断の時）
             text: `
                 <p>オフィスの照明が明滅を始める。<br>
                 彼女の気配が、モニターから溢れ出し、私の首筋を撫でている。<br>
@@ -336,13 +346,60 @@
     function render(sceneId) {
         window.scrollTo(0,0);
 
+        // ★★★ 音響システム連携 (Ver.9対応) ★★★
+        if(typeof AudioEngine !== 'undefined') {
+            AudioEngine.init(); // ユーザー操作後の再生許可のため呼び出し
+
+            const scene = scenes[sceneId];
+            
+            // 効果音 (SE)
+            // ※「通知音」の場合は特別演出（心臓音＋静寂）を入れる
+            if (scene && scene.sound === "ping") {
+                AudioEngine.playPing();
+                AudioEngine.playHeartbeat();
+            } else if (scene && scene.sound) {
+                if (scene.sound === "glitch") AudioEngine.playGlitch();
+                if (scene.sound === "heart") AudioEngine.playHeartbeat();
+                if (scene.sound === "shredder") AudioEngine.playShredder();
+                if (scene.sound === "impact") AudioEngine.playImpact();
+                if (scene.sound === "slam") AudioEngine.playSlam();
+                if (scene.sound === "execution") AudioEngine.playExecution();
+                if (scene.sound === "stamp") AudioEngine.playStamp();
+            }
+
+            // 音楽・環境音 (Music/Ambience)
+            // シナリオに指定がある場合のみ切り替える
+            if (scene && scene.music) {
+                if (scene.music === "title") AudioEngine.playTitleTheme();
+                else if (scene.music === "flashback") AudioEngine.playFlashbackTheme();
+                else if (scene.music === "confession") AudioEngine.playConfessionTheme();
+                else if (scene.music === "ending") AudioEngine.playEndingTheme();
+                
+                else if (scene.music === "mystery") AudioEngine.playMysteryTheme();
+                else if (scene.music === "chase") AudioEngine.playChaseTheme();
+                else if (scene.music === "horror") AudioEngine.playHorrorTheme();
+                
+                else if (scene.music === "office") AudioEngine.playAmbience("office");
+                else if (scene.music === "rain") AudioEngine.playAmbience("rain");
+                else if (scene.music === "tinnitus") AudioEngine.playAmbience("tinnitus");
+                else if (scene.music === "abyss") AudioEngine.playAmbience("abyss");
+                
+                else if (scene.music === "stop") AudioEngine.stopMusic();
+            } else if (scene && !scene.music) {
+                // 指定がない場合、デフォルト環境音（Office）を鳴らす
+                // ※BGM継続させたい場合はシナリオ側で制御する運用とする
+                AudioEngine.playAmbience("office");
+            }
+        }
+        // ★★★ 音響システム連携 ここまで ★★★
+
+
         if(sceneId.startsWith("route_")) {
             const routeName = sceneId.split("_")[1];
             let karma = 0;
             if(routeName === "revenge") karma = 50;
             if(routeName === "fear") karma = 0;
             
-            // 既存セーブデータを維持しつつ更新（重要）
             const oldSave = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
             oldSave.route = routeName;
             oldSave.sanity = 100;
@@ -366,7 +423,6 @@
 
         dom.choices.innerHTML = "";
         
-        // 美咲ログ既読なら、選択肢もバグらせる
         if(misakiRead && sceneId === "final_choice") {
              const btn = document.createElement("button");
              btn.innerText = "逃ゲラレナイ";
@@ -385,10 +441,9 @@
         });
     }
 
-    // 隠しリンクの可視化（右上）
     if(allCleared) {
         const link = document.getElementById("secret-link");
-        link.style.color = "#333"; // 少し見えるようにする
+        link.style.color = "#333";
         if(misakiRead) link.innerText = "☠";
     }
 

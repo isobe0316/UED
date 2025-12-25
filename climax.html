@@ -115,14 +115,17 @@
     <div id="choices-container"></div>
 </div>
 
+<script src="audio.js"></script>
+
 <script>
-    // ▼▼▼ シナリオデータ ▼▼▼
+    // ▼▼▼ シナリオデータ（最終完全版：音響演出追加） ▼▼▼
     const scenes = {
         // ----------------------------------------------------------------
-        // 第1章：偽りの平穏（完全復元版）
+        // 第1章：偽りの平穏
         // ----------------------------------------------------------------
         start: {
             icon: "☕",
+            music: "office", // ★環境音：平穏なオフィス
             text: `
                 <span class="name">5月20日 18:30 経理部フロア</span>
                 <p>
@@ -152,10 +155,11 @@
         },
 
         // ----------------------------------------------------------------
-        // 第2章：告白（完全復元版）
+        // 第2章：告白
         // ----------------------------------------------------------------
         confession_scene: {
             icon: "💌",
+            music: "confession", // ★BGM：告白のテーマ（幸せなMP3）
             text: `
                 <p>
                 資料室の重い扉を閉めると、周囲の雑音がかき消された。<br>
@@ -209,10 +213,12 @@
         },
 
         // ----------------------------------------------------------------
-        // 第3章：亡霊の介入（完全復元版）
+        // 第3章：亡霊の介入
         // ----------------------------------------------------------------
         intrusion: {
             icon: "📱",
+            sound: "ping", // ★SE：通知音（心臓音コンボ）
+            music: "stop", // ★BGM停止：静寂
             text: `
                 <p>
                 <strong style="color:#b00; font-size:1.5rem;">ブブブブブブッ！！！</strong>
@@ -242,6 +248,8 @@
         poltergeist: {
             icon: "👻",
             action: { shake: true },
+            sound: "glitch", // ★SE：バグ音
+            music: "horror", // ★BGM：恐怖のテーマ
             text: `
                 <p>
                 <span class="ghost-voice">
@@ -275,6 +283,7 @@
         // ----------------------------------------------------------------
         ultimatum: {
             icon: "⚖️",
+            music: "abyss", // ★BGM：深淵の地鳴り
             text: `
                 <p>
                 <span class="highlight">ギギギギギ……ッ！</span>
@@ -298,7 +307,7 @@
         },
 
         // ============================================================
-        // BAD END ROUTE: 死亡（梨奈を庇う・拡張版）
+        // BAD END ROUTE: 死亡（梨奈を庇う）
         // ============================================================
         bad_1_protect: {
             icon: "🛡️",
@@ -317,6 +326,8 @@
         },
         bad_2_impact: {
             icon: "💥",
+            sound: "slam", // ★SE：激しい打撃音（Slam）
+            music: "tinnitus", // ★Ambience：耳鳴り（衝撃後）
             text: `
                 <p><span class="ghost-voice">『……裏切ッタネ。亜久斗クン。』</span></p>
                 <p>耳元で、美咲の冷たい溜息が聞こえた気がした。</p>
@@ -333,6 +344,7 @@
         },
         end_bad: {
             icon: "⚰️",
+            music: "ending", // ★BGM：エンディング曲
             effect: { stopShake: true, redBg: true },
             text: `
                 <p>痛みはすぐに消えた。代わりに、深い闇が私を包み込む。</p>
@@ -352,10 +364,11 @@
         },
 
         // ============================================================
-        // TRUE END ROUTE: 生存（梨奈を突き放す・拡張版）
+        // TRUE END ROUTE: 生存（梨奈を突き放す）
         // ============================================================
         true_1_act: {
             icon: "💔",
+            sound: "slam", // ★SE：机叩き音（言葉の暴力）
             text: `
                 <p>梨奈を守る方法は一つしかない。<br>
                 美咲（霊）を満足させること。<br>
@@ -388,6 +401,7 @@
         },
         end_true: {
             icon: "🏚️",
+            music: "ending", // ★BGM：エンディング曲
             effect: { stopShake: true },
             text: `
                 <p>彼女の足音が遠ざかると同時に、棚の揺れがピタリと止まった。<br>
@@ -410,7 +424,7 @@
         },
 
         // ============================================================
-        // DARK END ROUTE: 悪魔（梨奈を生贄にする・拡張版）
+        // DARK END ROUTE: 悪魔（梨奈を生贄にする）
         // ============================================================
         dark_1_push: {
             icon: "😈",
@@ -428,6 +442,7 @@
         },
         dark_2_sacrifice: {
             icon: "🩸",
+            sound: "execution", // ★SE：処刑音（先輩の時と同じ音）
             text: `
                 <p>私は梨奈の肩を、思い切り蹴り飛ばした。</p>
                 <p>「きゃあっ！？」<br>
@@ -445,6 +460,7 @@
         },
         end_dark: {
             icon: "👁️",
+            music: "ending", // ★BGM：エンディング曲
             effect: { stopShake: true, redBg: true },
             text: `
                 <p>私はそれを見下ろしながら、腹の底から笑い出した。<br>
@@ -480,7 +496,6 @@
     const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { karma: 0 };
 
     function render(sceneId) {
-        // ★スクロール修正：必ず一番上へ★
         window.scrollTo(0, 0);
 
         if(sceneId === "back_to_title") {
@@ -488,16 +503,39 @@
             return;
         }
 
+        // ★★★ 音響システム連携 (Ver.9対応) ★★★
+        if(typeof AudioEngine !== 'undefined') {
+            const scene = scenes[sceneId];
+            
+            // 効果音
+            if (scene && scene.sound) {
+                if (scene.sound === "ping") { AudioEngine.playPing(); AudioEngine.playHeartbeat(); }
+                else if (scene.sound === "slam") AudioEngine.playSlam();
+                else if (scene.sound === "execution") AudioEngine.playExecution();
+                else if (scene.sound === "stamp") AudioEngine.playStamp();
+                else if (scene.sound === "glitch") AudioEngine.playGlitch();
+            }
+
+            // 音楽・環境音
+            if (scene && scene.music) {
+                if (scene.music === "confession") AudioEngine.playConfessionTheme();
+                else if (scene.music === "ending") AudioEngine.playEndingTheme();
+                else if (scene.music === "horror") AudioEngine.playHorrorTheme();
+                else if (scene.music === "tinnitus") AudioEngine.playAmbience("tinnitus");
+                else if (scene.music === "abyss") AudioEngine.playAmbience("abyss");
+                else if (scene.music === "office") AudioEngine.playAmbience("office");
+                else if (scene.music === "stop") AudioEngine.stopMusic();
+            }
+        }
+        // ★★★ 音響システム連携 ここまで ★★★
+
+
         // --- 最終分岐の生成 ---
         if (sceneId === "ultimatum") {
             const c = [];
-            // 1. BAD END（庇う） - 常に表示
             c.push({ text: "「危ない！」と叫んで梨奈を庇う", next: "bad_1_protect", class: "btn-bad" });
-
-            // 2. TRUE END（突き放す） - 常に表示
             c.push({ text: "「迷惑なんだよ！」と罵倒して梨奈を遠ざける", next: "true_1_act", class: "btn-true" });
             
-            // 3. DARK END（生贄） - 殺意が高い場合のみ出現
             if (savedData.karma >= 50) {
                 c.push({ text: "【殺意】梨奈を蹴り飛ばし、美咲に捧げる", next: "dark_1_push", class: "btn-dark" });
             }

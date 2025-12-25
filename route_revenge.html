@@ -127,12 +127,16 @@
     <div id="choices-container"></div>
 </div>
 
+<script src="audio.js"></script>
+
 <script>
-    // ▼▼▼ シナリオデータ（復讐編・泥沼版） ▼▼▼
+    // ▼▼▼ シナリオデータ（復讐編：音響演出追加） ▼▼▼
     const scenes = {
         // --- 導入：共犯契約 ---
         start: {
             icon: "💢",
+            sound: "slam", // ★SE：怒りの打撃
+            music: "mystery", // ★BGM：不穏な同盟
             text: `
                 <span class="name">深夜2:20 財務経理部フロア</span>
                 <p>「ふざけるな！！」</p>
@@ -194,6 +198,7 @@
         // --- 実家訪問 ---
         visit_home: {
             icon: "🏠",
+            music: "rain", // ★Ambience：共感の雨
             text: `
                 <span class="name">翌日 日曜日 美咲の実家</span>
                 <p>私は導かれるように美咲の実家を訪れていた。<br>
@@ -219,6 +224,7 @@
         // -----------------------------------------------------------
         evade_1: {
             icon: "😶",
+            music: "horror", // ★BGM：不穏
             text: `
                 <p>「……ちょっと待ってください。僕には関係ありません」</p>
                 <p>私は母親の手を振り払うようにして後ずさった。<br>
@@ -258,6 +264,7 @@
 
         evade_3: {
             icon: "🏃",
+            sound: "impact", // ★SE：殴打
             text: `
                 <p>「離せ！ この狂人め！！」</p>
                 <p>私は無我夢中で母親を殴りつけた。<br>
@@ -280,6 +287,8 @@
         // --- BAD END: 契約不履行 ---
         bad_end_payment: {
             icon: "💀",
+            sound: "impact", // ★SE：交通事故の衝撃
+            music: "ending",
             effect: { blood: false },
             text: `
                 <p>スマホの画面を見る。<br>
@@ -334,6 +343,7 @@
         // --- 復讐：犬飼 ---
         revenge_inukai_intro: {
             icon: "🏢",
+            music: "office", // ★Ambience：日常
             text: `
                 <span class="name">月曜日 経理部フロア</span>
                 <p>私は何食わぬ顔で出社した。<br>
@@ -356,6 +366,7 @@
 
         revenge_inukai_exec: {
             icon: "🩸",
+            sound: "execution", // ★SE：処刑音（電気ショック）
             effect: { blood: true, karma: +30 },
             text: `
                 <p>「やっちまえ、美咲」</p>
@@ -380,6 +391,8 @@
         // --- 復讐：権田 ---
         revenge_gonda_intro: {
             icon: "📉",
+            music: "chase", // ★BGM：緊張
+            sound: "shredder", // ★SE：さっきの惨劇の余韻
             text: `
                 <p>犬飼の死は「不慮の事故」として処理された。<br>
                 社内はパニックだが、権田部長は保身に走っている。</p>
@@ -403,6 +416,8 @@
 
         revenge_gonda_exec: {
             icon: "💀",
+            sound: "stamp", // ★SE：承認の判決音（ドォォォン！）
+            music: "ending", // ★BGM：終焉
             effect: { karma: +50 },
             text: `
                 <p>私がEnterキーを叩いた瞬間。</p>
@@ -459,6 +474,31 @@
             window.location.href = "climax.html";
             return;
         }
+
+        // ★★★ 音響システム連携 (Ver.9対応) ★★★
+        if(typeof AudioEngine !== 'undefined') {
+            const scene = scenes[sceneId];
+            
+            // 効果音
+            if (scene && scene.sound) {
+                if (scene.sound === "slam") AudioEngine.playSlam();
+                else if (scene.sound === "impact") AudioEngine.playImpact();
+                else if (scene.sound === "execution") AudioEngine.playExecution();
+                else if (scene.sound === "shredder") AudioEngine.playShredder();
+                else if (scene.sound === "stamp") AudioEngine.playStamp();
+            }
+
+            // 音楽・環境音
+            if (scene && scene.music) {
+                if (scene.music === "mystery") AudioEngine.playMysteryTheme();
+                else if (scene.music === "horror") AudioEngine.playHorrorTheme();
+                else if (scene.music === "rain") AudioEngine.playAmbience("rain");
+                else if (scene.music === "office") AudioEngine.playAmbience("office");
+                else if (scene.music === "chase") AudioEngine.playChaseTheme();
+                else if (scene.music === "ending") AudioEngine.playEndingTheme();
+            }
+        }
+        // ★★★ 音響システム連携 ここまで ★★★
 
         const scene = scenes[sceneId];
         

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound Test V8: Final</title>
+<style>
+    body { background-color: #050505; color: #ddd; font-family: "Yu Mincho", serif; text-align: center; padding: 40px; }
+    h1 { color: #f05; text-shadow: 0 0 10px #800; }
+    .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; margin: 0 auto; }
+    .card { background: #111; padding: 15px; border: 1px solid #333; border-radius: 8px; }
+    .card h3 { margin-top:0; color: #aaa; border-bottom: 1px solid #333; padding-bottom: 5px; }
+    button { width: 100%; padding: 12px; margin-bottom: 8px; cursor: pointer; background: #1a1a1a; color: #ccc; border: 1px solid #333; text-align: left; display: flex; justify-content: space-between; }
+    button:hover { background: #333; color: #fff; }
+    
+    .amb-btn { border-left: 4px solid #0f0; } 
+    .bgm-btn { border-left: 4px solid #00f; }
+    .happy-btn { border-left: 4px solid #ff00ff; } /* 告白用 */
+    .se-btn { border-left: 4px solid #fa0; }
+    .stop-btn { background: #800; color: #fff; text-align: center; display: block; width: 100%; padding: 20px; margin-top: 20px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+    <h1>🔊 Audio Engine V8 (Final)</h1>
+
+    <div class="container">
+        
+        <div class="card">
+            <h3>🎵 MUSIC & AMBIENCE</h3>
+            <button class="bgm-btn" onclick="AudioEngine.playTitleTheme()">Title (MP3)</button>
+            <button class="happy-btn" onclick="AudioEngine.playConfessionTheme()">Confession (MP3)<span>【NEW】告白</span></button>
+            <button class="bgm-btn" onclick="AudioEngine.playFlashbackTheme()">Flashback (MP3)</button>
+            <button class="bgm-btn" onclick="AudioEngine.playEndingTheme()">Ending (MP3)</button>
+            
+            <hr style="border-color:#333">
+            
+            <button class="amb-btn" onclick="AudioEngine.playAmbience('office')">Office (Default)</button>
+            <button class="amb-btn" onclick="AudioEngine.playAmbience('rain')">Rain (実家)</button>
+            <button class="amb-btn" onclick="AudioEngine.playAmbience('tinnitus')">Tinnitus (裏切り)</button>
+            <button class="amb-btn" onclick="AudioEngine.playAmbience('abyss')">Abyss (恐怖)</button>
+        </div>
+
+        <div class="card">
+            <h3>🔔 SOUND EFFECTS</h3>
+            <button class="se-btn" onclick="AudioEngine.playPing()">Ping (通知)</button>
+            <button class="se-btn" onclick="AudioEngine.playHeartbeat()">Heartbeat (心音)</button>
+            
+            <button class="se-btn" onclick="AudioEngine.playSlam()">
+                Slam (机叩き)<span>【NEW】歪み打撃</span>
+            </button>
+            
+            <button class="se-btn" onclick="AudioEngine.playExecution()">
+                Execution (先輩)<span>【NEW】処刑</span>
+            </button>
+
+            <button class="se-btn" onclick="AudioEngine.playStamp()">
+                Stamp (部長)<span>【NEW】承認</span>
+            </button>
+            
+            <button class="se-btn" onclick="AudioEngine.playShredder()">Shredder (破砕)</button>
+            <button class="se-btn" onclick="AudioEngine.playGlitch()">Glitch (バグ)</button>
+        </div>
+    </div>
+
+    <button class="stop-btn" onclick="AudioEngine.stopMusic()">⏹ STOP ALL</button>
+
+    <script src="audio.js"></script>
+</body>
+</html>

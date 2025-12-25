@@ -111,12 +111,15 @@
     <div id="choices-container"></div>
 </div>
 
+<script src="audio.js"></script>
+
 <script>
-    // ▼▼▼ シナリオデータ（愛執編・拡張版） ▼▼▼
+    // ▼▼▼ シナリオデータ（愛執編：音響演出追加） ▼▼▼
     const scenes = {
         // --- 導入 ---
         start: {
             icon: "🥀",
+            music: "rain", // ★環境音：雨（涙の比喩）
             text: `
                 <span class="name">深夜2:20 財務経理部フロア</span>
                 <p>
@@ -177,6 +180,7 @@
         // ============================================================
         flashback_aquarium_1: {
             icon: "🐬",
+            music: "flashback", // ★BGM：回想のテーマ（悲しいMP3）
             effect: { blue: true },
             text: `
                 <p class="flashback">
@@ -258,6 +262,7 @@
         // ============================================================
         flashback_birthday_1: {
             icon: "🎂",
+            music: "flashback", // ★BGM：回想のテーマ
             effect: { gold: true },
             text: `
                 <p class="flashback">
@@ -335,6 +340,7 @@
         // --- 霊との対話（現実へ） ---
         ghost_request: {
             icon: "👻",
+            music: "rain", // ★環境音：雨に戻る
             text: `
                 <p>
                 「会いたい……もう一度、会いたいよ」
@@ -366,6 +372,7 @@
         // --- 実家訪問：共有する悲しみ ---
         home_sorrow: {
             icon: "🏠",
+            music: "rain", // ★環境音：実家のしめやかな空気（雨）
             text: `
                 <span class="name">翌日 日曜日 美咲の実家</span>
                 <p>
@@ -415,6 +422,7 @@
         // --- 月曜日：静かなる幕引き ---
         monday_end: {
             icon: "⚰️",
+            music: "mystery", // ★BGM：静かな決着
             text: `
                 <span class="name">月曜日 経理部フロア</span>
                 <p>
@@ -442,6 +450,8 @@
         // --- エピローグ：慈悲と愛 ---
         epilogue_mercy: {
             icon: "🙏",
+            sound: "execution", // ★SE：処刑音（魂の解放）
+            music: "ending", // ★BGM：エンディング
             text: `
                 <p>
                 騒然とするオフィスの中で、私は目を閉じた。<br>
@@ -472,6 +482,7 @@
         // （※内部処理用：無言で見届けるルートも同じ結末へ）
         epilogue_silence: {
             icon: "🌑",
+            music: "ending", // ★BGM：エンディング
             text: `
                 <p>
                 騒然とするオフィスの中で、私はただ静かに立ち尽くしていた。<br>
@@ -513,38 +524,51 @@
         // ★スクロール修正：必ず一番上へ★
         window.scrollTo(0, 0);
 
-        // --- 特殊処理：クライマックスへ遷移 ---
         if(sceneId === "to_climax") {
-            // 愛執ルートは「美咲への愛」が強い。
             savedData.route = "emotion";
-            savedData.cleared_emotion = true; // ★クリアフラグを追加★
+            savedData.cleared_emotion = true;
             savedData.items = ["美咲のスマホ(遺品)", "ハンドクリーム"];
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
-            
             window.location.href = "climax.html";
             return;
         }
 
+        // ★★★ 音響システム連携 (Ver.9対応) ★★★
+        if(typeof AudioEngine !== 'undefined') {
+            const scene = scenes[sceneId];
+            
+            // 効果音
+            if (scene && scene.sound) {
+                if (scene.sound === "execution") AudioEngine.playExecution();
+            }
+
+            // 音楽・環境音
+            if (scene && scene.music) {
+                if (scene.music === "rain") AudioEngine.playAmbience("rain");
+                else if (scene.music === "flashback") AudioEngine.playFlashbackTheme();
+                else if (scene.music === "mystery") AudioEngine.playMysteryTheme();
+                else if (scene.music === "ending") AudioEngine.playEndingTheme();
+                else if (scene.music === "stop") AudioEngine.stopMusic();
+            }
+        }
+        // ★★★ 音響システム連携 ここまで ★★★
+
         const scene = scenes[sceneId];
         
-        // 演出更新（色味の変更など）
         if(scene.effect) {
             if(scene.effect.tears) dom.tears.classList.add("active");
-            if(scene.effect.blue) dom.header.style.filter = "hue-rotate(180deg) sepia(0.2)"; // 水族館風
-            if(scene.effect.gold) dom.header.style.filter = "hue-rotate(40deg) sepia(0.5) brightness(1.2)"; // 誕生日風
+            if(scene.effect.blue) dom.header.style.filter = "hue-rotate(180deg) sepia(0.2)";
+            if(scene.effect.gold) dom.header.style.filter = "hue-rotate(40deg) sepia(0.5) brightness(1.2)";
         } else {
             dom.tears.classList.remove("active");
-            dom.header.style.filter = "sepia(0.4)"; // デフォルト
+            dom.header.style.filter = "sepia(0.4)";
         }
 
-        // 画面描画
         dom.icon.innerText = scene.icon || "🥀";
         dom.text.innerHTML = scene.text;
         
-        // テキストフェードイン
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1500, fill:"forwards"});
 
-        // 選択肢生成
         dom.choices.innerHTML = "";
         scene.choices.forEach(c => {
             const btn = document.createElement("button");
@@ -554,7 +578,6 @@
         });
     }
 
-    // 開始
     render("start");
 
 </script>

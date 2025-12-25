@@ -116,12 +116,16 @@
     <div id="choices-container"></div>
 </div>
 
+<script src="audio.js"></script>
+
 <script>
-    // ▼▼▼ シナリオデータ（恐怖編・完全版） ▼▼▼
+    // ▼▼▼ シナリオデータ（恐怖編：音響演出追加） ▼▼▼
     const scenes = {
         // --- 導入：拒絶と逃走 ---
         start: {
             icon: "🏃",
+            sound: "glitch", // ★SE：不吉なノイズ
+            music: "chase", // ★BGM：追跡（Synth）
             text: `
                 <span class="name">深夜2:20 財務経理部フロア</span>
                 <p>
@@ -163,6 +167,7 @@
         // --- 分岐A：エレベーター（閉鎖空間） ---
         elevator_trap: {
             icon: "🛗",
+            music: "abyss", // ★Ambience：閉鎖空間の地鳴り
             text: `
                 <p>
                 私はエレベーターホールへ駆け込み、連打してボタンを押した。<br>
@@ -194,6 +199,7 @@
         // --- 分岐B：非常階段（無限ループ） ---
         stairs_loop: {
             icon: "🪜",
+            music: "horror", // ★BGM：恐怖のループ
             text: `
                 <p>
                 エレベーターは危険だ。私は非常階段の重い鉄扉を押し開けた。<br>
@@ -230,6 +236,7 @@
         // --- 強制契約 ---
         forced_pact: {
             icon: "⛓️",
+            music: "abyss", // ★Ambience：圧迫感
             text: `
                 <p>
                 「ひ、ひぃぃぃ！！ ごめんなさい！ 許して！！」<br>
@@ -293,6 +300,7 @@
         // --- 追加シーン1: 侵食 ---
         torture_phase_1: {
             icon: "🧟",
+            sound: "glitch", // ★SE：バグ音
             text: `
                 <p>
                 「あがっ……！ いだ、痛いッ！！」
@@ -328,6 +336,7 @@
         // --- 追加シーン2: 絶望の宣告と、土壇場の選択 ---
         torture_phase_2: {
             icon: "👁️",
+            sound: "impact", // ★SE：強い衝撃（骨折音）
             text: `
                 <p>
                 「いやだ！ 死にたくない！ まだ死にたくない！！」
@@ -361,6 +370,8 @@
 
         bad_end_fear: {
             icon: "💀",
+            sound: "slam", // ★SE：首が折れる激しい音
+            music: "ending",
             text: `
                 <p>
                 <span class="scream">ボキッ。</span>
@@ -394,6 +405,7 @@
         // --- 殺人1：犬飼（シュレッダー） ---
         monday_murder_1: {
             icon: "🩸",
+            music: "office", // ★環境音：日常に戻ったフリ
             text: `
                 <span class="name">月曜日 シュレッダー室</span>
                 <p>
@@ -428,14 +440,22 @@
                 罪悪感じゃない。「これで半分助かった」という安堵で。
                 </p>
             `,
+            sound: "shredder", // ★SE：シュレッダー起動音
             choices: [
-                { text: "次のターゲットへ向かう", next: "monday_murder_2" }
+                { text: "次のターゲットへ向かう", next: "monday_murder_1_done" }
             ]
+        },
+        monday_murder_1_done: {
+            sound: "execution", // ★SE：断末魔の代わり（処刑）
+            text: "",
+            next: "monday_murder_2",
+            choices: [ { text: "次へ...", next: "monday_murder_2" } ]
         },
 
         // --- 殺人2：権田（薬の没収） ---
         monday_murder_2: {
             icon: "💊",
+            music: "horror", // ★BGM：恐怖再び
             text: `
                 <span class="name">月曜日 夜 会議室</span>
                 <p>
@@ -471,6 +491,7 @@
                 権田は絶望の表情で手を伸ばし、そして動かなくなった。
                 </p>
             `,
+            sound: "heart", // ★SE：心臓発作
             choices: [
                 { text: "奴隷の生活が始まる（climax.htmlへ）", next: "to_climax" }
             ]
@@ -492,7 +513,6 @@
         window.scrollTo(0, 0);
 
         if(sceneId === "back_to_title") {
-            // ★クリアフラグを追加★
             const currentSave = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
             currentSave.cleared_fear = true;
             localStorage.setItem("yojitsu_save", JSON.stringify(currentSave));
@@ -501,20 +521,47 @@
             return;
         }
 
-        // --- 特殊処理：クライマックスへ遷移 ---
         if(sceneId === "to_climax") {
-            // Fearルートは「殺人」を犯しているため KarmaMAX。
             savedData.route = "fear";
-            // ★クリアフラグを追加★
             savedData.cleared_fear = true;
-            
             savedData.items = ["美咲のスマホ(凶器)"];
             savedData.karma = 100;
             localStorage.setItem("yojitsu_save", JSON.stringify(savedData));
-            
             window.location.href = "climax.html";
             return;
         }
+        
+        // ★特殊な中間処理（音を鳴らすためだけのステップ）
+        if(sceneId === "monday_murder_1_done") {
+             if(typeof AudioEngine !== 'undefined') AudioEngine.playExecution();
+             render("monday_murder_2");
+             return;
+        }
+
+        // ★★★ 音響システム連携 (Ver.9対応) ★★★
+        if(typeof AudioEngine !== 'undefined') {
+            const scene = scenes[sceneId];
+            
+            // 効果音
+            if (scene && scene.sound) {
+                if (scene.sound === "glitch") AudioEngine.playGlitch();
+                else if (scene.sound === "impact") AudioEngine.playImpact();
+                else if (scene.sound === "slam") AudioEngine.playSlam();
+                else if (scene.sound === "shredder") AudioEngine.playShredder();
+                else if (scene.sound === "heart") AudioEngine.playHeartbeat();
+            }
+
+            // 音楽・環境音
+            if (scene && scene.music) {
+                if (scene.music === "chase") AudioEngine.playChaseTheme();
+                else if (scene.music === "abyss") AudioEngine.playAmbience("abyss");
+                else if (scene.music === "horror") AudioEngine.playHorrorTheme();
+                else if (scene.music === "office") AudioEngine.playAmbience("office");
+                else if (scene.music === "ending") AudioEngine.playEndingTheme();
+            }
+        }
+        // ★★★ 音響システム連携 ここまで ★★★
+
 
         const scene = scenes[sceneId];
         
