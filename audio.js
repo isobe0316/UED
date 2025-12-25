@@ -162,10 +162,10 @@ const AudioEngine = {
         this.currentMp3 = audio;
     },
 
-    playTitleTheme: function() { this.playMp3("opening.mp3"); },
-    playFlashbackTheme: function() { this.playMp3("flashback.mp3"); },
-    playConfessionTheme: function() { this.playMp3("confession.mp3"); },
-    playEndingTheme: function() { this.playMp3("ending.mp3"); },
+    playTitleTheme: function() { this.playMp3("audio/opening.mp3"); },
+    playFlashbackTheme: function() { this.playMp3("audio/flashback.mp3"); },
+    playConfessionTheme: function() { this.playMp3("audio/confession.mp3"); },
+    playEndingTheme: function() { this.playMp3("audio/ending.mp3"); },
 
     // ====================================================
     // 🎹 プログラム生成 BGM (楽曲)

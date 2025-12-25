@@ -65,11 +65,34 @@
     /* ビジュアルヘッダー */
     #scene-header {
         height: 200px;
-        background: radial-gradient(circle at center, rgba(51,34,17,0.8) 0%, rgba(0,0,0,0.9) 100%);
+        background-size: cover;
+        background-position: center;
         display: flex; align-items: center; justify-content: center;
-        font-size: 5rem; position: relative; overflow: hidden;
-        border-bottom: 1px solid #554422;
+        position: relative; overflow: hidden;
+        border-bottom: 1px solid #332211;
         flex-shrink: 0;
+        transition: background-image 0.5s ease;
+    }
+    #scene-header::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(180deg, rgba(20,15,10,0.6) 0%, rgba(0,0,0,0.85) 100%);
+        z-index: 1;
+    }
+    /* 抽象的シンボル（涙の雫） */
+    #scene-symbol {
+        width: 30px; height: 45px;
+        border: 1px solid rgba(245,166,35,0.25);
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        position: relative;
+        opacity: 0.4;
+        z-index: 2;
+    }
+    #scene-symbol::after {
+        content: ''; position: absolute;
+        top: 40%; left: 50%; transform: translate(-50%, -50%);
+        width: 6px; height: 6px;
+        background: rgba(245,166,35,0.3);
+        border-radius: 50%;
     }
     
     /* 涙と光の演出 */
@@ -132,7 +155,7 @@
 
 <div id="game-wrapper">
     <div id="scene-header">
-        <span id="scene-icon">🥀</span>
+        <div id="scene-symbol"></div>
         <div id="tear-fx" class="tear-overlay"></div>
     </div>
 
@@ -140,33 +163,45 @@
     <div id="choices-container"></div>
 </div>
 
-<audio id="bgm-player" loop></audio>
-<audio id="se-player"></audio>
-
+<script src="audio.js"></script>
 <script>
     /* =========================================
        システム制御 (Audio & Image)
        ========================================= */
+    // AudioEngine ラッパー
     const audio = {
-        bgm: document.getElementById("bgm-player"),
-        se: document.getElementById("se-player"),
         currentBgm: "",
         
         playBgm: function(filename) {
             if(this.currentBgm === filename) return;
-            this.bgm.src = `audio/${filename}.mp3`;
-            this.bgm.volume = 0.4;
-            this.bgm.play().catch(e => console.log("Audio Error"));
             this.currentBgm = filename;
+            
+            if(filename === "bgm_ending") AudioEngine.playEndingTheme();
+            else if(filename === "bgm_flashback") AudioEngine.playFlashbackTheme();
+            else if(filename === "bgm_confession") AudioEngine.playConfessionTheme();
+            else if(filename === "bgm_rain") AudioEngine.playAmbience("rain");
+            else if(filename === "bgm_mystery") AudioEngine.playMysteryTheme();
+            else if(filename === "bgm_horror") AudioEngine.playHorrorTheme();
+            else if(filename === "bgm_chase") AudioEngine.playChaseTheme();
+            else if(filename === "bgm_office") AudioEngine.playAmbience("office");
+            else if(filename === "bgm_abyss") AudioEngine.playAmbience("abyss");
+            else if(filename === "bgm_tinnitus") AudioEngine.playAmbience("tinnitus");
+            else console.log("Unknown BGM:", filename);
         },
         stopBgm: function() {
-            this.bgm.pause();
+            AudioEngine.stopMusic();
             this.currentBgm = "";
         },
         playSe: function(filename) {
-            this.se.src = `audio/${filename}.mp3`;
-            this.se.volume = 0.6;
-            this.se.play().catch(e => console.log("SE Error"));
+            if(filename === "se_ping") AudioEngine.playPing();
+            else if(filename === "se_glitch") AudioEngine.playGlitch();
+            else if(filename === "se_slam") AudioEngine.playSlam();
+            else if(filename === "se_execution") AudioEngine.playExecution();
+            else if(filename === "se_impact") AudioEngine.playImpact();
+            else if(filename === "se_heartbeat" || filename === "se_heart") AudioEngine.playHeartbeat();
+            else if(filename === "se_shredder") AudioEngine.playShredder();
+            else if(filename === "se_stamp") AudioEngine.playStamp();
+            else console.log("Unknown SE:", filename);
         }
     };
 
@@ -579,7 +614,7 @@
                 </p>
             `,
             choices: [
-                { text: "物語はクライマックスへ（climax.htmlへ）", next: "to_climax" }
+                { text: "彼女の影を胸に抱き、生きていく", next: "to_climax" }
             ]
         },
 
@@ -608,7 +643,7 @@
                 </p>
             `,
             choices: [
-                { text: "物語はクライマックスへ（climax.htmlへ）", next: "to_climax" }
+                { text: "彼女の影を胸に抱き、生きていく", next: "to_climax" }
             ]
         }
     };
@@ -617,7 +652,6 @@
     const dom = {
         text: document.getElementById("narrative-area"),
         choices: document.getElementById("choices-container"),
-        icon: document.getElementById("scene-icon"),
         tears: document.getElementById("tear-fx"),
         header: document.getElementById("scene-header")
     };
@@ -627,6 +661,7 @@
 
     function render(sceneId) {
         window.scrollTo(0, 0);
+        document.getElementById("game-wrapper").scrollTop = 0;
 
         if(sceneId === "to_climax") {
             savedData.route = "emotion";
@@ -643,6 +678,11 @@
         if(scene) {
             visuals.setBg(scene.bg);
             visuals.setCg(scene.cg);
+            
+            // ヘッダーにも背景画像を設定
+            if(scene.bg) {
+                dom.header.style.backgroundImage = `url('images/${scene.bg}.jpg')`;
+            }
             
             if(scene.effect) {
                 if(scene.effect.blue) visuals.setFilter("blue");
@@ -663,7 +703,6 @@
         }
 
         // --- 2. テキスト描画 ---
-        dom.icon.innerText = scene.icon || "🥀";
         dom.text.innerHTML = scene.text;
         
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1500, fill:"forwards"});

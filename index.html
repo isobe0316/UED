@@ -59,12 +59,41 @@
     }
     
     #scene-header {
-        height: 260px;
-        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+        height: 200px;
+        background-size: cover;
+        background-position: center;
         display: flex; align-items: center; justify-content: center;
-        font-size: 5rem; position: relative; overflow: hidden;
-        border-bottom: 1px solid #222;
-        transition: all 1s;
+        position: relative; overflow: hidden;
+        border-bottom: 1px solid #1a1a1a;
+        transition: background-image 0.5s ease;
+    }
+    #scene-header::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(180deg, rgba(10,10,10,0.6) 0%, rgba(0,0,0,0.85) 100%);
+        z-index: 1;
+    }
+    /* 抽象的シンボル */
+    #scene-symbol {
+        width: 40px; height: 40px;
+        border: 1px solid rgba(138,0,0,0.3);
+        border-radius: 50%;
+        position: relative;
+        opacity: 0.4;
+        z-index: 2;
+    }
+    #scene-symbol::before {
+        content: ''; position: absolute;
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 20px; height: 20px;
+        border: 1px solid rgba(138,0,0,0.5);
+        border-radius: 50%;
+    }
+    #scene-symbol::after {
+        content: ''; position: absolute;
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 5px; height: 5px;
+        background: rgba(138,0,0,0.4);
+        border-radius: 50%;
     }
     
     #teams-notification {
@@ -128,24 +157,90 @@
     .corrupted-body { background-color: #100; }
     .corrupted-btn { border-color: #f00 !important; color: #f00 !important; animation: glitch 0.5s infinite; }
 
-    /* タイトル画面 */
+    /* 起動画面 */
     #start-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #000; z-index: 9999;
         display: flex; flex-direction: column;
         justify-content: center; align-items: center;
+        color: #fff;
+    }
+    #start-screen-inner {
+        width: 100%; max-width: 700px;
+        padding: 40px;
+        display: flex; flex-direction: column;
+        align-items: center;
+    }
+    /* ゲージバー */
+    #gauge-container {
+        width: 100%; margin-bottom: 60px;
+    }
+    #gauge-label {
+        color: #c0392b; font-size: 0.9rem; letter-spacing: 0.15em;
+        margin-bottom: 10px; font-weight: bold;
+    }
+    #gauge-bar {
+        width: 100%; height: 8px;
+        background: #222; border-radius: 4px; overflow: hidden;
+    }
+    #gauge-fill {
+        width: 0%; height: 100%;
+        background: linear-gradient(90deg, #c0392b 0%, #e74c3c 50%, #f39c12 100%);
+        border-radius: 4px;
+        transition: width 2s ease-out;
+    }
+    /* 警告文 */
+    #warning-text {
+        color: #555; font-size: 0.85rem; letter-spacing: 0.3em;
+        margin-bottom: 80px; text-align: center;
+    }
+    /* 説明文 */
+    #audio-notice {
+        color: #888; font-size: 1rem; text-align: center;
+        line-height: 2; margin-bottom: 120px;
+    }
+    /* 起動ボタン */
+    #start-button {
+        width: 100%; max-width: 500px;
+        background: transparent; border: 1px solid #333;
+        color: #ccc; padding: 20px 40px;
+        font-family: "Yu Mincho", serif; font-size: 1.1rem;
+        cursor: pointer; transition: all 0.3s;
+        letter-spacing: 0.1em;
+    }
+    #start-button:hover {
+        background: #111; border-color: #666; color: #fff;
+    }
+    @keyframes blink { 50% { opacity: 0.5; } }
+
+    /* タイトル画面 */
+    #title-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; z-index: 9998;
+        display: none; flex-direction: column;
+        justify-content: center; align-items: center;
         color: #fff; cursor: pointer;
     }
-    #start-screen-bg {
+    #title-screen-bg {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background-image: url('images/bg_title_main.jpg');
         background-size: cover; background-position: center;
-        opacity: 0.6;
+        opacity: 0.5;
     }
-    #start-text-container { z-index: 1; text-align: center; text-shadow: 0 0 20px #000; }
-    #start-title { font-size: 3rem; margin-bottom: 20px; font-weight: bold; letter-spacing: 0.1em; }
-    #click-msg { font-size: 1.2rem; animation: blink 2s infinite; color: #aaa; }
-    @keyframes blink { 50% { opacity: 0; } }
+    #title-content {
+        z-index: 1; text-align: center; text-shadow: 0 0 30px #000;
+    }
+    #title-main {
+        font-size: 2.8rem; font-weight: bold; letter-spacing: 0.15em;
+        margin-bottom: 15px; color: #fff;
+    }
+    #title-sub {
+        font-size: 1rem; color: #888; letter-spacing: 0.2em; margin-bottom: 80px;
+    }
+    #title-click {
+        font-size: 1rem; color: #666; animation: blink 2s infinite;
+        letter-spacing: 0.1em;
+    }
 
 </style>
 </head>
@@ -156,11 +251,27 @@
     <div id="cg-layer"><img id="cg-image" src="" alt=""></div>
 </div>
 
-<div id="start-screen" onclick="initGame()">
-    <div id="start-screen-bg"></div>
-    <div id="start-text-container">
-        <div id="start-title">埋まらない予実差の闇</div>
-        <div id="click-msg">- Click to Start -</div>
+<div id="start-screen">
+    <div id="start-screen-inner">
+        <div id="gauge-container">
+            <div id="gauge-label">予 実 差 (VARIANCE)</div>
+            <div id="gauge-bar"><div id="gauge-fill"></div></div>
+        </div>
+        <div id="warning-text">WARNING: PSYCHOLOGICAL HORROR</div>
+        <div id="audio-notice">
+            このゲームは音声を再生します。<br>
+            音量を上げてお楽しみください。
+        </div>
+        <button id="start-button" onclick="showTitle()">■ 起動 (CLICK TO START)</button>
+    </div>
+</div>
+
+<div id="title-screen" onclick="startGame()">
+    <div id="title-screen-bg"></div>
+    <div id="title-content">
+        <div id="title-main">埋まらない予実差の闇</div>
+        <div id="title-sub">— The Unfillable Variance —</div>
+        <div id="title-click">- Click to Start -</div>
     </div>
 </div>
 
@@ -168,7 +279,7 @@
     <div id="secret-link" onclick="checkSecret()">π</div>
 
     <div id="scene-header">
-        <span id="scene-icon">🌙</span>
+        <div id="scene-symbol"></div>
         <div id="teams-notification">
             <div class="notif-header">
                 <span>Unknown User</span>
@@ -181,33 +292,28 @@
     <div id="choices-container"></div>
 </div>
 
-<audio id="bgm-player" loop></audio>
-<audio id="se-player"></audio>
-
+<script src="audio.js"></script>
 <script>
     /* =========================================
        システム制御 (Audio & Image)
        ========================================= */
+    // AudioEngineをラップして従来のaudioインターフェースを提供
     const audio = {
-        bgm: document.getElementById("bgm-player"),
-        se: document.getElementById("se-player"),
         currentBgm: "",
         
         playBgm: function(filename) {
             if(this.currentBgm === filename) return;
-            this.bgm.src = `audio/${filename}.mp3`;
-            this.bgm.volume = 0.4;
-            this.bgm.play().catch(e => console.log("Audio Error"));
+            // filenameに応じてAudioEngineの関数を呼び出す
+            if(filename === "opening") AudioEngine.playTitleTheme();
+            else if(filename === "flashback") AudioEngine.playFlashbackTheme();
+            else if(filename === "confession") AudioEngine.playConfessionTheme();
+            else if(filename === "ending") AudioEngine.playEndingTheme();
+            else AudioEngine.playMp3("audio/" + filename + ".mp3");
             this.currentBgm = filename;
         },
         stopBgm: function() {
-            this.bgm.pause();
+            AudioEngine.stopMusic();
             this.currentBgm = "";
-        },
-        playSe: function(filename) {
-            this.se.src = `audio/${filename}.mp3`;
-            this.se.volume = 0.6;
-            this.se.play().catch(e => console.log("SE Error"));
         }
     };
 
@@ -229,16 +335,53 @@
         }
     };
 
-    function initGame() {
-        const screen = document.getElementById("start-screen");
+    // 起動画面のゲージアニメーション
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            document.getElementById("gauge-fill").style.width = "75%";
+        }, 500);
+    });
+
+    // 起動画面 → タイトル画面
+    function showTitle() {
+        const startScreen = document.getElementById("start-screen");
+        const titleScreen = document.getElementById("title-screen");
+        const btn = document.getElementById("start-button");
+        
+        // ボタンを無効化
+        btn.disabled = true;
+        btn.innerText = "■ 起動中...";
+        
+        // ゲージを100%に
+        document.getElementById("gauge-fill").style.width = "100%";
+        
+        // BGM開始
+        audio.playBgm("opening"); 
+
+        setTimeout(() => {
+            startScreen.style.transition = "opacity 1s";
+            startScreen.style.opacity = 0;
+            setTimeout(() => {
+                startScreen.style.display = "none";
+                titleScreen.style.display = "flex";
+                titleScreen.style.opacity = 0;
+                titleScreen.style.transition = "opacity 1.5s";
+                setTimeout(() => {
+                    titleScreen.style.opacity = 1;
+                }, 50);
+            }, 1000);
+        }, 500);
+    }
+
+    // タイトル画面 → ゲーム本編
+    function startGame() {
+        const titleScreen = document.getElementById("title-screen");
         const game = document.getElementById("game-wrapper");
         
-        audio.playBgm("bgm_title"); 
-
-        screen.style.transition = "opacity 1s";
-        screen.style.opacity = 0;
+        titleScreen.style.transition = "opacity 1s";
+        titleScreen.style.opacity = 0;
         setTimeout(() => {
-            screen.style.display = "none";
+            titleScreen.style.display = "none";
             game.style.display = "flex";
             render("start");
         }, 1000);
@@ -247,6 +390,18 @@
     /* =========================================
        ゲームロジック & シナリオ
        ========================================= */
+    
+    // 【隠しコマンド】Ctrl+Shift+Rでセーブデータをクリア
+    document.addEventListener('keydown', function(e) {
+        if(e.ctrlKey && e.shiftKey && e.key === 'R') {
+            e.preventDefault();
+            if(confirm('セーブデータを削除しますか？')) {
+                localStorage.removeItem("yojitsu_save");
+                alert('セーブデータを削除しました。ページをリロードします。');
+                location.reload();
+            }
+        }
+    });
     
     // セーブデータ確認
     const save = JSON.parse(localStorage.getItem("yojitsu_save")) || {};
@@ -276,7 +431,7 @@
         start: {
             icon: "🏢",
             bg: "bg_office_night",
-            music: "bgm_clock",
+            ambience: "office",
             text: `
                 <p>202X年 4月15日 深夜2:15。財務経理部フロア。</p>
                 <p>オフィスの空調が、獣の寝息のような低い唸り声を上げている。<br>
@@ -305,7 +460,7 @@
             icon: "🥀",
             bg: "bg_misaki_desk",
             cg: "cg_hand_cream",
-            music: "bgm_mystery",
+            music: "flashback",
             text: `
                 <p>私は椅子を軋ませて立ち上がり、薄暗い通路を歩いて彼女のデスクへと近づいた。<br>
                 そこだけ空気が澱み、時間が止まっているように感じる。</p>
@@ -331,7 +486,7 @@
             icon: "📉",
             bg: "bg_office_night",
             cg: "",
-            sound: "se_glitch",
+            sound: "glitch",
             text: `
                 <p>感傷に浸っている時間はない。<br>
                 私が数字を合わせなければ、明日の役員会で経理部長が恥をかく。<br>
@@ -356,7 +511,7 @@
         incident_trigger: {
             icon: "🔔",
             bg: "bg_office_night",
-            sound: "se_ping",
+            sound: "ping",
             music: "stop",
             action: { popup: "件名: 予実差異（Variance）の報告<br><br>ねえ、実績が合わないよ。<br>私が生きたかった未来と、死んだ現実の差が埋まらないの。" },
             text: `
@@ -381,8 +536,8 @@
         attempt_ignore: {
             icon: "🚫",
             bg: "bg_office_night",
-            music: "bgm_horror",
-            sound: "se_glitch",
+            synth: "horror",
+            sound: "glitch",
             text: `
                 <p>「……馬鹿な。誰かの悪質な悪戯だ」</p>
                 <p>私は自分に言い聞かせるように呟き、マウスカーソルを通知の「×」ボタンへ動かした。<br>
@@ -404,7 +559,7 @@
             icon: "💻",
             bg: "bg_office_night",
             cg: "cg_misaki_ghost_hollow",
-            music: "bgm_horror",
+            music: "confession",
             text: `
                 <p>私は震える指でマウスを操作し、メッセージを開いた。（あるいは、勝手に開かれた。）</p>
                 <p class="ghost-voice">
@@ -436,7 +591,7 @@
             icon: "⚖️",
             bg: "bg_office_night",
             cg: "cg_misaki_ghost_hollow",
-            music: "bgm_abyss",
+            ambience: "abyss",
             text: `
                 <p>オフィスの照明が明滅を始める。<br>
                 彼女の気配が、モニターから溢れ出し、私の首筋を撫でている。<br>
@@ -456,7 +611,6 @@
     const dom = {
         text: document.getElementById("narrative-area"),
         choices: document.getElementById("choices-container"),
-        icon: document.getElementById("scene-icon"),
         notif: document.getElementById("teams-notification"),
         notifContent: document.getElementById("notif-content"),
         header: document.getElementById("scene-header")
@@ -488,14 +642,37 @@
             visuals.setBg(scene.bg);
             visuals.setCg(scene.cg);
             
-            if(scene.music === "stop") audio.stopBgm();
-            else if(scene.music) audio.playBgm(scene.music);
+            // ヘッダーにも背景画像を設定
+            if(scene.bg) {
+                dom.header.style.backgroundImage = `url('images/${scene.bg}.jpg')`;
+            }
+            
+            // 音楽制御（優先順位: ambience > synth > music）
+            if(scene.music === "stop") {
+                audio.stopBgm();
+            } else if(scene.ambience) {
+                // シンセ環境音
+                AudioEngine.playAmbience(scene.ambience);
+            } else if(scene.synth) {
+                // シンセBGM
+                if(scene.synth === "horror") AudioEngine.playHorrorTheme();
+                else if(scene.synth === "mystery") AudioEngine.playMysteryTheme();
+                else if(scene.synth === "chase") AudioEngine.playChaseTheme();
+            } else if(scene.music) {
+                // MP3再生
+                audio.playBgm(scene.music);
+            }
 
             if(scene.sound) {
-                audio.playSe(scene.sound);
-                if(scene.sound === "se_ping") {
+                // AudioEngineのシンセサイザーを使用
+                if(scene.sound === "ping") AudioEngine.playPing();
+                else if(scene.sound === "glitch") AudioEngine.playGlitch();
+                else if(scene.sound === "heart") AudioEngine.playHeartbeat();
+                else if(scene.sound === "slam") AudioEngine.playSlam();
+                
+                if(scene.sound === "ping") {
                     // 通知音の時の特別演出
-                    setTimeout(() => audio.playSe("se_heart"), 500);
+                    setTimeout(() => AudioEngine.playHeartbeat(), 500);
                 }
             }
 
@@ -505,7 +682,6 @@
             }
         }
 
-        dom.icon.innerText = scene.icon || "▪";
         dom.text.innerHTML = scene.text;
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
 

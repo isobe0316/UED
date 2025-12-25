@@ -69,10 +69,38 @@
 
     #visual-stage {
         height: 200px;
-        background: radial-gradient(circle at center, rgba(26,26,26,0.5) 0%, rgba(0,0,0,0.8) 100%);
+        background-size: cover;
+        background-position: center;
         display: flex; align-items: center; justify-content: center;
-        font-size: 5rem; border-bottom: 1px solid #333; position: relative; overflow: hidden;
+        border-bottom: 1px solid #222; position: relative; overflow: hidden;
         flex-shrink: 0;
+        transition: background-image 0.5s ease;
+    }
+    #visual-stage::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(180deg, rgba(15,15,15,0.6) 0%, rgba(0,0,0,0.85) 100%);
+        z-index: 1;
+    }
+    /* 抽象的シンボル（崩壊する円） */
+    #scene-symbol {
+        width: 40px; height: 40px;
+        border: 1px solid rgba(138,0,0,0.25);
+        border-radius: 50%;
+        position: relative;
+        opacity: 0.4;
+        z-index: 2;
+    }
+    #scene-symbol::before {
+        content: ''; position: absolute;
+        top: 0; left: 50%; transform: translateX(-50%);
+        width: 1px; height: 100%;
+        background: linear-gradient(180deg, rgba(138,0,0,0.3) 0%, transparent 100%);
+    }
+    #scene-symbol::after {
+        content: ''; position: absolute;
+        top: 50%; left: 0; transform: translateY(-50%);
+        width: 100%; height: 1px;
+        background: linear-gradient(90deg, transparent 0%, rgba(138,0,0,0.3) 50%, transparent 100%);
     }
     
     #final-popup {
@@ -134,7 +162,7 @@
 
 <div id="game-wrapper">
     <div id="visual-stage">
-        <span id="scene-icon">🌸</span>
+        <div id="scene-symbol"></div>
         <div id="final-popup">
             <strong>Unknown User</strong><br>
             <span id="popup-msg">その席は、埋まっています。</span>
@@ -145,33 +173,70 @@
     <div id="choices-container"></div>
 </div>
 
-<audio id="bgm-player" loop></audio>
-<audio id="se-player"></audio>
-
+<script src="audio.js"></script>
 <script>
     /* =========================================
        システム制御 (Audio & Image)
        ========================================= */
+    // AudioEngine ラッパー（シンセサイザーベースのBGM/SE + MP3）
     const audio = {
-        bgm: document.getElementById("bgm-player"),
-        se: document.getElementById("se-player"),
         currentBgm: "",
         
         playBgm: function(filename) {
             if(this.currentBgm === filename) return;
-            this.bgm.src = `audio/${filename}.mp3`;
-            this.bgm.volume = 0.4;
-            this.bgm.play().catch(e => console.log("Audio Error"));
             this.currentBgm = filename;
+            
+            // MP3ベースBGM
+            if(filename === "bgm_ending") {
+                AudioEngine.playEndingTheme();
+            } else if(filename === "bgm_confession") {
+                AudioEngine.playConfessionTheme();
+            }
+            // アンビエンス（シンセサイザー）
+            else if(filename === "bgm_clock" || filename === "bgm_office") {
+                AudioEngine.playAmbience("office");
+            } else if(filename === "bgm_tinnitus") {
+                AudioEngine.playAmbience("tinnitus");
+            } else if(filename === "bgm_abyss") {
+                AudioEngine.playAmbience("abyss");
+            }
+            // シンセサイザーBGM
+            else if(filename === "bgm_horror") {
+                AudioEngine.playHorrorTheme();
+            } else if(filename === "bgm_mystery") {
+                AudioEngine.playMysteryTheme();
+            } else if(filename === "bgm_chase") {
+                AudioEngine.playChaseTheme();
+            }
+            else {
+                console.log("Unknown BGM:", filename);
+            }
         },
         stopBgm: function() {
-            this.bgm.pause();
+            AudioEngine.stopMusic();
             this.currentBgm = "";
         },
         playSe: function(filename) {
-            this.se.src = `audio/${filename}.mp3`;
-            this.se.volume = 0.6;
-            this.se.play().catch(e => console.log("SE Error"));
+            // シンセサイザーSE
+            if(filename === "se_ping") {
+                AudioEngine.playPing();
+            } else if(filename === "se_glitch") {
+                AudioEngine.playGlitch();
+            } else if(filename === "se_slam") {
+                AudioEngine.playSlam();
+            } else if(filename === "se_execution") {
+                AudioEngine.playExecution();
+            } else if(filename === "se_impact") {
+                AudioEngine.playImpact();
+            } else if(filename === "se_heartbeat") {
+                AudioEngine.playHeartbeat();
+            } else if(filename === "se_shredder") {
+                AudioEngine.playShredder();
+            } else if(filename === "se_stamp") {
+                AudioEngine.playStamp();
+            } else {
+                console.log("Unknown SE:", filename);
+            }
         }
     };
 
@@ -236,6 +301,7 @@
         confession_scene: {
             icon: "💌",
             bg: "bg_archive",        // ★背景：資料室
+            cg: "cg_misaki_smile",   // ★CG：微笑む美咲の思い出
             music: "bgm_confession", // ★BGM：告白のテーマ
             text: `
                 <p>
@@ -585,7 +651,6 @@
     const dom = {
         text: document.getElementById("narrative-area"),
         choices: document.getElementById("choices-container"),
-        icon: document.getElementById("scene-icon"),
         wrapper: document.getElementById("game-wrapper"),
         popup: document.getElementById("final-popup"),
         popupMsg: document.getElementById("popup-msg")
@@ -596,6 +661,7 @@
 
     function render(sceneId) {
         window.scrollTo(0, 0);
+        document.getElementById("game-wrapper").scrollTop = 0;
 
         if(sceneId === "back_to_title") {
             window.location.href = "index.html";
@@ -608,6 +674,11 @@
         if(scene) {
             visuals.setBg(scene.bg);
             visuals.setCg(scene.cg);
+            
+            // ヘッダーにも背景画像を設定
+            if(scene.bg) {
+                document.getElementById("visual-stage").style.backgroundImage = `url('images/${scene.bg}.jpg')`;
+            }
             
             if(scene.music === "stop") audio.stopBgm();
             else if(scene.music) audio.playBgm(scene.music);
@@ -646,7 +717,6 @@
         }
 
         // --- 4. 画面描画 ---
-        dom.icon.innerText = scene.icon || "🌸";
         dom.text.innerHTML = scene.text;
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
 

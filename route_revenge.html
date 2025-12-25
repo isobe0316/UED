@@ -65,15 +65,36 @@
     /* ビジュアルヘッダー */
     #scene-header {
         height: 200px;
-        background: radial-gradient(circle at center, rgba(51,0,0,0.8) 0%, rgba(0,0,0,0.9) 100%);
+        background-size: cover;
+        background-position: center;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 5rem;
         position: relative;
         overflow: hidden;
-        border-bottom: 1px solid #500;
+        border-bottom: 1px solid #300;
         flex-shrink: 0;
+        transition: background-image 0.5s ease;
+    }
+    #scene-header::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(180deg, rgba(20,0,0,0.6) 0%, rgba(0,0,0,0.85) 100%);
+        z-index: 1;
+    }
+    /* 抽象的シンボル（刃） */
+    #scene-symbol {
+        width: 2px; height: 50px;
+        background: linear-gradient(180deg, transparent 0%, rgba(208,2,27,0.4) 50%, transparent 100%);
+        position: relative;
+        opacity: 0.6;
+        z-index: 2;
+    }
+    #scene-symbol::before {
+        content: ''; position: absolute;
+        top: 25%; left: 50%; transform: translate(-50%, 0) rotate(45deg);
+        width: 16px; height: 16px;
+        border-top: 1px solid rgba(208,2,27,0.3);
+        border-right: 1px solid rgba(208,2,27,0.3);
     }
     
     .blood-overlay {
@@ -151,7 +172,7 @@
 
 <div id="game-wrapper">
     <div id="scene-header">
-        <span id="scene-icon">💢</span>
+        <div id="scene-symbol"></div>
         <div id="blood-fx" class="blood-overlay"></div>
     </div>
 
@@ -159,33 +180,47 @@
     <div id="choices-container"></div>
 </div>
 
-<audio id="bgm-player" loop></audio>
-<audio id="se-player"></audio>
-
+<script src="audio.js"></script>
 <script>
     /* =========================================
        システム制御 (Audio & Image)
        ========================================= */
+    // AudioEngineをラップして従来のaudioインターフェースを提供
     const audio = {
-        bgm: document.getElementById("bgm-player"),
-        se: document.getElementById("se-player"),
         currentBgm: "",
         
         playBgm: function(filename) {
             if(this.currentBgm === filename) return;
-            this.bgm.src = `audio/${filename}.mp3`;
-            this.bgm.volume = 0.5;
-            this.bgm.play().catch(e => console.log("Audio Error"));
+            // シンセBGM
+            if(filename === "bgm_mystery") AudioEngine.playMysteryTheme();
+            else if(filename === "bgm_horror") AudioEngine.playHorrorTheme();
+            else if(filename === "bgm_chase") AudioEngine.playChaseTheme();
+            // 環境音
+            else if(filename === "bgm_office") AudioEngine.playAmbience("office");
+            else if(filename === "bgm_rain") AudioEngine.playAmbience("rain");
+            else if(filename === "bgm_abyss") AudioEngine.playAmbience("abyss");
+            // MP3
+            else if(filename === "opening" || filename === "bgm_title") AudioEngine.playTitleTheme();
+            else if(filename === "flashback") AudioEngine.playFlashbackTheme();
+            else if(filename === "confession") AudioEngine.playConfessionTheme();
+            else if(filename === "ending" || filename === "bgm_ending") AudioEngine.playEndingTheme();
+            else AudioEngine.playMp3("audio/" + filename + ".mp3");
             this.currentBgm = filename;
         },
         stopBgm: function() {
-            this.bgm.pause();
+            AudioEngine.stopMusic();
             this.currentBgm = "";
         },
         playSe: function(filename) {
-            this.se.src = `audio/${filename}.mp3`;
-            this.se.volume = 0.7;
-            this.se.play().catch(e => console.log("SE Error"));
+            // シンセSEを使用
+            if(filename === "se_ping" || filename === "ping") AudioEngine.playPing();
+            else if(filename === "se_glitch" || filename === "glitch") AudioEngine.playGlitch();
+            else if(filename === "se_heart" || filename === "heart") AudioEngine.playHeartbeat();
+            else if(filename === "se_slam" || filename === "slam") AudioEngine.playSlam();
+            else if(filename === "se_shredder" || filename === "shredder") AudioEngine.playShredder();
+            else if(filename === "se_execution" || filename === "execution") AudioEngine.playExecution();
+            else if(filename === "se_stamp" || filename === "stamp") AudioEngine.playStamp();
+            else if(filename === "se_impact" || filename === "impact") AudioEngine.playImpact();
         }
     };
 
@@ -538,7 +573,7 @@
                 あの「告白」があるまでは。</p>
             `,
             choices: [
-                { text: "物語はクライマックスへ（climax.htmlへ移動）", next: "to_climax" }
+                { text: "復讐は果たされた。そのはずだった", next: "to_climax" }
             ]
         }
     };
@@ -547,7 +582,6 @@
     const dom = {
         text: document.getElementById("narrative-area"),
         choices: document.getElementById("choices-container"),
-        icon: document.getElementById("scene-icon"),
         blood: document.getElementById("blood-fx")
     };
 
@@ -555,7 +589,9 @@
     const savedData = JSON.parse(localStorage.getItem("yojitsu_save")) || { route: "revenge", sanity: 100, karma: 0 };
 
     function render(sceneId) {
+        // 画面トップにスクロール
         window.scrollTo(0, 0);
+        document.getElementById("game-wrapper").scrollTop = 0;
 
         if(sceneId === "back_to_title") {
             window.location.href = "index.html";
@@ -591,6 +627,11 @@
                 visuals.setFilter("normal");
                 dom.blood.classList.remove("active");
             }
+            
+            // ヘッダーにも背景画像を設定
+            if(scene.bg) {
+                document.getElementById("scene-header").style.backgroundImage = `url('images/${scene.bg}.jpg')`;
+            }
 
             if(scene.music === "stop") audio.stopBgm();
             else if(scene.music) audio.playBgm(scene.music);
@@ -599,7 +640,6 @@
         }
 
         // --- 2. 画面描画 ---
-        dom.icon.innerText = scene.icon || "💢";
         dom.text.innerHTML = scene.text;
         
         dom.text.animate([{opacity:0}, {opacity:1}], {duration: 1000, fill:"forwards"});
